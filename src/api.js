@@ -12,10 +12,22 @@ async function post(path, body) {
   return r.json();
 }
 
-export async function callClaude(system, messages) {
-  const r = await post("/api/claude", { system, messages });
+export async function callClaude(system, messages, opts = {}) {
+  const r = await post("/api/claude", { system, messages, temperature: opts.temperature });
   if (r.error) throw new Error(r.error);
   return r.text || "";
+}
+
+// OpenAI TTS (anahtar varsa). Audio blob URL döndürür; yoksa null.
+export async function fetchTTS(text, voice, speed) {
+  try {
+    const r = await fetch("/api/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, voice, speed }) });
+    if (!r.ok) return null;
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("audio")) return null;
+    const b = await r.blob();
+    return URL.createObjectURL(b);
+  } catch { return null; }
 }
 
 export async function sget(key, shared = true) {

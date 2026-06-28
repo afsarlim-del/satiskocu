@@ -8,7 +8,7 @@ import {
   Moon, Sun, ListChecks, ShoppingBag,
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { callClaude, sget, sset, slist } from "./api.js";
+import { callClaude, sget, sset, slist, fetchTTS } from "./api.js";
 
 const MODEL = "claude-sonnet-4-6";
 const ADMIN_CODE = "2024";
@@ -32,7 +32,9 @@ if (typeof window !== "undefined") {
   const h = () => unlockSpeech();
   ["pointerdown", "touchstart", "click", "keydown"].forEach((ev) => window.addEventListener(ev, h, { passive: true }));
 }
-function speak(text, onDone, opts = {}) {
+let _ttsMode = null; // null: bilinmiyor, true: openai, false: tarayıcı
+const _audio = typeof Audio !== "undefined" ? new Audio() : null;
+function speakBrowser(text, onDone, opts = {}) {
   if (!synth || !text) { onDone && onDone(); return; }
   try {
     synth.cancel();
@@ -48,6 +50,24 @@ function speak(text, onDone, opts = {}) {
     synth.resume();
     synth.speak(u);
   } catch { onDone && onDone(); }
+}
+async function speak(text, onDone, opts = {}) {
+  if (!text) { onDone && onDone(); return; }
+  try { synth && synth.cancel(); } catch {}
+  try { if (_audio) { _audio.pause(); _audio.currentTime = 0; } } catch {}
+  if (_ttsMode !== false && _audio) {
+    try {
+      const url = await fetchTTS(text, opts.ovoice || "nova", opts.rate);
+      if (url) {
+        _ttsMode = true;
+        _audio.src = url;
+        const done = () => { try { URL.revokeObjectURL(url); } catch {} onDone && onDone(); };
+        _audio.onended = done; _audio.onerror = done;
+        try { await _audio.play(); return; } catch { /* autoplay engeli → tarayıcıya düş */ }
+      } else if (_ttsMode === null) { _ttsMode = false; }
+    } catch { if (_ttsMode === null) _ttsMode = false; }
+  }
+  speakBrowser(text, onDone, opts);
 }
 function charSeed(name) { let h = 0; for (const c of String(name || "")) h = (h * 31 + c.charCodeAt(0)) % 997; return h; }
 const FEMALE_NAMES = ["selin", "elif", "aslı", "asli", "ayşe", "ayse", "burcu", "deniz", "zeynep", "eda", "seda", "merve", "buse", "ece", "yağmur", "yagmur", "gizem", "cansu", "derya", "esra", "büşra", "busra", "fatma", "hatice", "emine", "melek", "nur", "sıla", "sila", "irem", "öykü", "oyku", "su", "defne", "azra", "ela", "lara"];
@@ -82,7 +102,8 @@ function voiceFor(emotion, name, gender) {
     ilgili:    { rate: 1.05, pitch: base + 0.05 },
     ikna:      { rate: 1.06, pitch: base + 0.1 },
   }[emotion] || { rate: 1.0, pitch: base };
-  return { ...m, voice: pickVoice(name, g) };
+  const ovoice = g === "k" ? (charSeed(name) % 2 ? "nova" : "shimmer") : (charSeed(name) % 2 ? "onyx" : "echo");
+  return { ...m, voice: pickVoice(name, g), ovoice };
 }
 
 /* ====================== kripto ====================== */
