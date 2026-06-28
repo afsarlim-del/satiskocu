@@ -1,2 +1,3 @@
 name = "satiskocu"
 pages_build_output_dir = "dist"
+# cloudflare yeniden deploy
