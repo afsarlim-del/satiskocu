@@ -1,3 +1,6 @@
 name = "satiskocu"
 pages_build_output_dir = "dist"
-# cloudflare yeniden deploy
+
+[[kv_namespaces]]
+binding = "SATISKOCU_KV"
+id = "7decc6f250134ec0875b6477b1cb0103"
