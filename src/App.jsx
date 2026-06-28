@@ -171,7 +171,37 @@ export default function App() {
   );
 }
 
-function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}` }} />; }
+function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}@keyframes skBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}@keyframes skTalk{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.05)}}@keyframes skBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}.sk-eyes{transform-box:fill-box;transform-origin:center;animation:skBlink 4.2s infinite}.sk-talk{transform-box:fill-box;transform-origin:center;animation:skTalk .26s infinite}.sk-bob{animation:skBob 3.6s ease-in-out infinite}` }} />; }
+
+const FACE = {
+  supheci:   { browL: "M38 47 L52 49", browR: "M68 49 L82 47", mouth: "M48 82 Q60 82 72 82" },
+  dusunuyor: { browL: "M38 45 L52 47", browR: "M68 49 L82 51", mouth: "M52 83 Q60 81 68 83" },
+  tereddut:  { browL: "M38 50 L52 45", browR: "M68 45 L82 50", mouth: "M48 86 Q60 80 72 86" },
+  ilgili:    { browL: "M38 46 L52 47", browR: "M68 47 L82 46", mouth: "M48 80 Q60 88 72 80" },
+  ikna:      { browL: "M38 44 L52 45", browR: "M68 45 L82 44", mouth: "M46 79 Q60 93 74 79" },
+};
+function CharacterFace({ mood = "supheci", talking, thinking }) {
+  const f = FACE[mood] || FACE.supheci;
+  return (
+    <svg viewBox="0 0 120 124" className="h-full w-full">
+      <path d="M18 124 Q18 96 60 96 Q102 96 102 124 Z" fill="#6366f1" />
+      <rect x="52" y="84" width="16" height="14" rx="6" fill="#f3c9a8" />
+      <circle cx="60" cy="56" r="38" fill="#fadcc0" />
+      <path d="M22 54 Q22 16 60 16 Q98 16 98 54 Q98 40 82 36 Q70 30 60 30 Q50 30 38 36 Q22 40 22 54 Z" fill="#3f3f46" />
+      <circle cx="23" cy="58" r="6" fill="#fadcc0" /><circle cx="97" cy="58" r="6" fill="#fadcc0" />
+      <g className="sk-eyes">
+        <ellipse cx="47" cy="58" rx="6" ry="7" fill="#fff" /><circle cx="48" cy="59" r="3" fill="#27272a" />
+        <ellipse cx="73" cy="58" rx="6" ry="7" fill="#fff" /><circle cx="72" cy="59" r="3" fill="#27272a" />
+      </g>
+      <path d={f.browL} stroke="#3f3f46" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d={f.browR} stroke="#3f3f46" strokeWidth="3" strokeLinecap="round" fill="none" />
+      {talking
+        ? <ellipse className="sk-talk" cx="60" cy="82" rx="8" ry="6" fill="#7f1d1d" />
+        : <path d={f.mouth} stroke="#7f1d1d" strokeWidth="3.5" strokeLinecap="round" fill="none" />}
+      {thinking && <g><circle cx="93" cy="30" r="3" fill="#cbd5e1" /><circle cx="101" cy="24" r="2.2" fill="#cbd5e1" /><circle cx="107" cy="19" r="1.6" fill="#cbd5e1" /></g>}
+    </svg>
+  );
+}
 
 function TopBar({ user, me, onLogout, manager }) {
   const lv = levelInfo(me?.totalXp || 0);
@@ -334,7 +364,11 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
   const [thinking, setThinking] = useState(false); const [scoring, setScoring] = useState(false); const [ended, setEnded] = useState(null);
   const [err, setErr] = useState(""); const [ready, setReady] = useState(false); const [voiceMode, setVoiceMode] = useState(false); const [listening, setListening] = useState(false);
   const [hint, setHint] = useState(""); const [hintBusy, setHintBusy] = useState(false);
-  const ref = useRef(null), recogRef = useRef(null), apiRef = useRef([]), voiceRef = useRef(false), endedRef = useRef(false), thinkingRef = useRef(false);
+  const [talking, setTalking] = useState(false);
+  const ref = useRef(null), recogRef = useRef(null), apiRef = useRef([]), voiceRef = useRef(false), endedRef = useRef(false), thinkingRef = useRef(false), talkTimer = useRef(null);
+  function pulseTalk(ms = 1400) { setTalking(true); if (talkTimer.current) clearTimeout(talkTimer.current); talkTimer.current = setTimeout(() => setTalking(false), ms); }
+  function sayOut(text, then) { setTalking(true); speak(text, () => { setTalking(false); then && then(); }); }
+  useEffect(() => { const last = turns[turns.length - 1]; if (last && last.who === "c" && !voiceRef.current) pulseTalk(Math.min(4500, 900 + (last.text ? last.text.length : 0) * 38)); }, [turns]);
   useEffect(() => { voiceRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { endedRef.current = !!ended; }, [ended]);
   useEffect(() => { thinkingRef.current = thinking; }, [thinking]);
@@ -356,7 +390,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
       apiRef.current = [...msgs, { role: "assistant", content: raw }];
       setTurns((x) => [...x, { who: "c", text: p.reply, emotion: p.emotion }]); setMood(p.emotion || mood);
       if (p.done) { setEnded("won"); endedRef.current = true; } else if (p.leave) { setEnded("lost"); endedRef.current = true; }
-      if (voiceRef.current) speak(p.reply, () => { if (voiceRef.current && !endedRef.current) startListen(); });
+      if (voiceRef.current) sayOut(p.reply, () => { if (voiceRef.current && !endedRef.current) startListen(); });
     } catch { setErr("Yanıt alınamadı, tekrar gönder."); }
     setThinking(false); thinkingRef.current = false;
   }
@@ -380,7 +414,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
   function toggleVoice() {
     const nv = !voiceMode; setVoiceMode(nv); voiceRef.current = nv;
     if (!nv) { try { synth && synth.cancel(); } catch {} stopListen(); }
-    else { const last = [...turns].reverse().find((t) => t.who === "c"); if (last) speak(last.text, () => { if (voiceRef.current && !endedRef.current) startListen(); }); }
+    else { const last = [...turns].reverse().find((t) => t.who === "c"); if (last) sayOut(last.text, () => { if (voiceRef.current && !endedRef.current) startListen(); }); }
   }
   async function finish() {
     const reps = turns.filter((t) => t.who === "r").length; if (scoring || reps < 1) return;
@@ -411,10 +445,14 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between"><button onClick={() => { try { synth && synth.cancel(); } catch {} stopListen(); onQuit(); }} className="text-sm font-semibold text-slate-500">← Vazgeç</button><button onClick={toggleVoice} disabled={!SR && !synth} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${voiceMode ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"} disabled:opacity-40`}>{voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />} Sesli mod</button></div>
       <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200"><div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white"><Target className="h-3 w-3" /> {scenario.kpi}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${DIFF[scenario.diff || "orta"].cls}`}>{DIFF[scenario.diff || "orta"].label}</span></div><p className="mt-2 text-[13px] leading-snug text-slate-600">{scenario.brief}</p></div>
-      <div className={`flex items-center justify-between rounded-2xl px-4 py-2.5 ring-1 ring-slate-200 ${MOODS[mood]?.bg}`}><div className="flex items-center gap-2.5"><span className="text-2xl">{MOODS[mood]?.emoji}</span><div><div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{scenario.name} · ruh hali</div><div className={`text-sm font-bold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div></div></div><div className="text-right"><div className="text-[10px] text-slate-400">tur</div><div className="text-sm font-bold text-slate-700">{reps}</div></div></div>
+      <div className="flex items-center gap-3 rounded-2xl bg-white px-3 py-3 ring-1 ring-slate-200">
+        <div className={`sk-bob h-16 w-16 shrink-0 overflow-hidden rounded-2xl ${MOODS[mood]?.bg}`}><CharacterFace mood={mood} talking={talking} thinking={thinking} /></div>
+        <div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">{scenario.name} · {scenario.product}</div><div className={`text-base font-bold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div><div className="mt-0.5 text-[11px] font-medium text-slate-400">{talking ? "konuşuyor…" : thinking ? "düşünüyor…" : "dinliyor"}</div></div>
+        <div className="text-right"><div className="text-[10px] text-slate-400">tur</div><div className="text-sm font-bold text-slate-700">{reps}</div></div>
+      </div>
       <div ref={ref} className="h-[34vh] min-h-[200px] space-y-3 overflow-y-auto rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         {turns.map((t, i) => t.who === "c" ? (
-          <div key={i} className="flex items-end gap-2"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm">{MOODS[t.emotion]?.emoji || "🙂"}</div><div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[14px] leading-relaxed text-slate-800">{t.text}<button onClick={() => speak(t.text)} title="Dinle" className="ml-1.5 inline-flex translate-y-0.5 text-slate-400 hover:text-indigo-600"><Volume2 className="h-3.5 w-3.5" /></button></div></div>
+          <div key={i} className="flex items-end gap-2"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm">{MOODS[t.emotion]?.emoji || "🙂"}</div><div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[14px] leading-relaxed text-slate-800">{t.text}<button onClick={() => sayOut(t.text)} title="Dinle" className="ml-1.5 inline-flex translate-y-0.5 text-slate-400 hover:text-indigo-600"><Volume2 className="h-3.5 w-3.5" /></button></div></div>
         ) : (
           <div key={i} className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-600 to-violet-600 px-3.5 py-2.5 text-[14px] leading-relaxed text-white">{t.text}</div></div>
         ))}
