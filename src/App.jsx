@@ -20,6 +20,18 @@ const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
 let VOICES = [];
 function loadVoices() { try { VOICES = (synth && synth.getVoices()) || []; } catch {} }
 if (synth) { loadVoices(); try { synth.onvoiceschanged = loadVoices; } catch {} }
+let _spkUnlocked = false;
+function unlockSpeech() {
+  if (!synth) return;
+  loadVoices();
+  if (_spkUnlocked) return;
+  _spkUnlocked = true;
+  try { const u = new SpeechSynthesisUtterance("​"); u.volume = 0; synth.speak(u); synth.resume(); } catch {}
+}
+if (typeof window !== "undefined") {
+  const h = () => unlockSpeech();
+  ["pointerdown", "touchstart", "click", "keydown"].forEach((ev) => window.addEventListener(ev, h, { passive: true }));
+}
 function speak(text, onDone, opts = {}) {
   if (!synth || !text) { onDone && onDone(); return; }
   try {
@@ -120,9 +132,16 @@ const BASE_CATALOG = [
   { id: "kapanis", emoji: "🤝", product: "iPhone 17 Pro (kararsız)", kpi: "Satış Kapatma", diff: "zor", name: "Okan", mood: "dusunuyor", brief: "Her şeyi beğendi ama bir türlü 'tamam' demiyor; kapatma tekniği şart.", persona: "Sen Okan, 38. Ürünü beğendin, soruların bitti ama karar vermekten kaçıyorsun: 'bir düşüneyim', 'belki sonra geçerim'. Gerçek bir itirazın yok, sadece kararsızsın ve oyalanıyorsun. KURAL: Temsilci zayıf kapatırsa (sadece 'buyrun isterseniz', 'düşünün') oyalan ve 'düşüneyim' deyip çık (leave:true). Ancak temsilci NET bir kapanış tekniği kullanırsa ikna ol ve al (done:true): varsayımsal kapanış ('paketleyeyim mi'), iki seçenekten birini sundurma ('256 mı 512 mi'), aciliyet/kıtlık ('bu renk son'), ya da özet + net çağrı. Lafı uzatıp kapatmayı denemeyen temsilciden sıkıl." },
 ];
 
-const SCENARIO_SYSTEM = `Apple Premium Reseller (Türkiye) için GERÇEKÇİ, çeşitli bir satış prova müşterisi üret. Ürün/fiyat verirsen şu güncel listeden seç:
+const SCENARIO_SYSTEM = `Apple Premium Reseller (Türkiye) için GERÇEKÇİ ve HER SEFERİNDE FARKLI bir satış prova müşterisi üret. Kalıplaşma; klişe "merhaba, şöyle bakıyordum" açılışından KESİNLİKLE kaçın. İsim, yaş, cinsiyet, meslek, bütçe, kişilik ve konuşma tarzı benzersiz olsun. Ürün/fiyat verirsen şu güncel listeden seç:
 ${PRODUCTS}
-SADECE JSON: {"name":"isim","gender":"e|k","product":"ürün","kpi":"Sigorta Attach|Aksesuar Attach|Mac Upgrade|Trade-In|Finansman|Watch Attach|iPad Attach|Premium Satış","diff":"kolay|orta|zor","brief":"tek cümle","mood":"supheci|dusunuyor|tereddut|ilgili|sinirli","emoji":"tek emoji","persona":"4-6 cümle, itirazlar dahil"}`;
+SADECE JSON: {"name":"isim","gender":"e|k","product":"ürün","kpi":"Sigorta Attach|Aksesuar Attach|Mac Upgrade|Trade-In|Finansman|Watch Attach|iPad Attach|Premium Satış","diff":"kolay|orta|zor","brief":"tek cümle","mood":"supheci|dusunuyor|tereddut|ilgili|sinirli","emoji":"tek emoji","persona":"4-6 cümle, somut itirazlar ve bu kişiye özgü ayrıntılar dahil"}`;
+const ARCHETYPES = ["fiyat odaklı sıkı pazarlıkçı", "teknolojiden anlamayan, ilk kez akıllı telefon alan", "rakip markaya (Android/Samsung) sadık, ikna olmaya kapalı", "bütçesi kısıtlı üniversite öğrencisi", "premium ve en yenisini isteyen üst gelirli", "çok kararsız, sürekli erteleyen", "internetten her şeyi araştırmış, fiyatları ezbere bilen bilinçli müşteri", "sevdiğine hediye almaya gelmiş, ürünü tanımayan", "garanti ve servis konusunda aşırı kaygılı", "yeniliğe meraklı, erken benimseyen teknoloji tutkunu", "yaşlı, sabırlı ve detaylı açıklama bekleyen", "küçük işletmesi için toplu/kurumsal alım soran", "acelesi olan, kısa ve net konuşan", "indirim/kampanya peşinde fırsatçı"];
+const CONTEXTS = ["yoğun cumartesi kalabalığı", "sabahın sakin ilk saati", "büyük kampanya haftası", "yeni iPhone çıkış günü telaşı", "okula dönüş sezonu", "yılbaşı hediye yoğunluğu", "ay sonu bütçe kısıtlı dönem", "Black Friday günü"];
+const OBJ_SEEDS = ["fiyat beklediğinden çok yüksek", "rakip mağazada/online daha ucuz gördü", "şimdi almak istemiyor, düşünecek", "eski cihazı hâlâ gayet iyi çalışıyor", "bu kadar özelliğe ihtiyacı olmadığını düşünüyor", "garanti/servis kapsamını yetersiz buluyor", "taksit/finansman koşullarını beğenmiyor", "istediği renk/model stokta yok sanıyor", "markaya güvenmiyor, kalıcılığından şüpheli", "eşine/patronuna danışması gerek"];
+function scenarioSeed() {
+  const r = (a) => a[Math.floor(Math.random() * a.length)];
+  return `Bu sefer şu eksende, öncekilerden TAMAMEN farklı bir müşteri kurgula. Müşteri tipi: ${r(ARCHETYPES)}. Mağaza bağlamı: ${r(CONTEXTS)}. Baskın itiraz: ${r(OBJ_SEEDS)}. Bu profile uygun bir KPI ve zorluk seç; açılış cümlesi bu kişiliğe özgü, doğal ve klişe olmayan olsun.`;
+}
 
 const QUIZ = [
   { q: "cihaz sigortası teklifi için en doğru an hangisi?", a: ["Müşteri vitrindeyken", "İhtiyaç keşfinden sonra", "Ödeme bittikten sonra"], c: 1 },
@@ -490,7 +509,7 @@ function ProfileTab({ me, user, myRank, manager, onBecomeManager, onUpdate }) {
 function PracticeTab({ user, catalog, onFinish, goHome }) {
   const [view, setView] = useState("pick"); const [scenario, setScenario] = useState(null); const [genBusy, setGenBusy] = useState(false); const [feedback, setFeedback] = useState(null);
   useEffect(() => { if (window.__launch) { setScenario(window.__launch); setView("play"); window.__launch = null; } }, []);
-  async function genAI() { setGenBusy(true); try { const s = looseJSON(await callClaude(SCENARIO_SYSTEM, [{ role: "user", content: "Yeni, farklı bir senaryo üret." }])); s.id = "ai-" + Date.now(); setScenario(s); setView("play"); } catch { setScenario(catalog[Math.floor(Math.random() * catalog.length)]); setView("play"); } setGenBusy(false); }
+  async function genAI() { setGenBusy(true); try { const s = looseJSON(await callClaude(SCENARIO_SYSTEM, [{ role: "user", content: scenarioSeed() }])); s.id = "ai-" + Date.now(); setScenario(s); setView("play"); } catch { setScenario(catalog[Math.floor(Math.random() * catalog.length)]); setView("play"); } setGenBusy(false); }
   if (view === "quiz") return <Quiz user={user} onDone={() => { onFinish(); setView("pick"); }} onBack={() => setView("pick")} />;
   if (view === "guided") return <GuidedDemo user={user} onBack={() => { onFinish(); setView("pick"); }} />;
   if (view === "play" && scenario) return <Roleplay user={user} scenario={scenario} onResult={(fb) => { setFeedback(fb); setView("result"); onFinish(); }} onQuit={() => setView("pick")} />;
@@ -576,7 +595,7 @@ ${PRODUCTS}
 SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","name":"müşteri adı","gender":"e|k","mood":"supheci|dusunuyor|tereddut|ilgili|ikna|sinirli","options":[{"text":"danışman cevabı","quality":"iyi|orta|zayıf","why":"tek cümle gerekçe"}],"closed":false,"verdict":""}`;
   async function step1() {
     setBusy(true); setErr("");
-    const msgs = [{ role: "user", content: "Vakaya başla. iPhone 17 Pro almayı düşünen ama Cihaz Sigortası'na mesafeli bir müşteri. İlk müşteri cümlesini ve 3 danışman seçeneğini ver." }];
+    const msgs = [{ role: "user", content: `Vakaya başla. ${scenarioSeed()} İlk müşteri cümlesini, adını, cinsiyetini ve 3 danışman seçeneğini ver.` }];
     try { const r = looseJSON(await callClaude(sys, msgs)); apiRef.current = [...msgs, { role: "assistant", content: JSON.stringify(r) }]; setCur(r); setMood(r.mood || "supheci"); } catch { setErr("Demo başlatılamadı, geri dönüp tekrar dene."); }
     setBusy(false);
   }
