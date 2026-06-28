@@ -19,21 +19,40 @@ const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
 let VOICES = [];
 function loadVoices() { try { VOICES = (synth && synth.getVoices()) || []; } catch {} }
 if (synth) { loadVoices(); try { synth.onvoiceschanged = loadVoices; } catch {} }
-function speak(text, onDone) {
+function speak(text, onDone, opts = {}) {
   if (!synth || !text) { onDone && onDone(); return; }
   try {
     synth.cancel();
     if (!VOICES.length) loadVoices();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "tr-TR";
-    const v = VOICES.find((x) => (x.lang || "").toLowerCase().startsWith("tr")) || VOICES.find((x) => (x.lang || "").toLowerCase().startsWith("en"));
+    const v = opts.voice || VOICES.find((x) => (x.lang || "").toLowerCase().startsWith("tr")) || VOICES.find((x) => (x.lang || "").toLowerCase().startsWith("en"));
     if (v) u.voice = v;
-    u.rate = 1.03;
+    u.rate = opts.rate || 1.03;
+    u.pitch = Math.max(0.4, Math.min(1.8, opts.pitch || 1));
     u.onend = () => onDone && onDone();
     u.onerror = () => onDone && onDone();
     synth.resume();
     synth.speak(u);
   } catch { onDone && onDone(); }
+}
+function charSeed(name) { let h = 0; for (const c of String(name || "")) h = (h * 31 + c.charCodeAt(0)) % 997; return h; }
+function pickVoice(name) {
+  const tr = VOICES.filter((v) => (v.lang || "").toLowerCase().startsWith("tr"));
+  const pool = tr.length ? tr : VOICES.filter((v) => (v.lang || "").toLowerCase().startsWith("en"));
+  return pool.length ? pool[charSeed(name) % pool.length] : null;
+}
+function voiceFor(emotion, name) {
+  const base = 0.92 + (charSeed(name) % 16) / 100; // her müşteriye sabit, hafif farklı temel ton
+  const m = {
+    sinirli:   { rate: 1.14, pitch: base - 0.2 },
+    tereddut:  { rate: 1.1,  pitch: base + 0.2 },
+    supheci:   { rate: 0.97, pitch: base - 0.05 },
+    dusunuyor: { rate: 0.95, pitch: base },
+    ilgili:    { rate: 1.05, pitch: base + 0.07 },
+    ikna:      { rate: 1.06, pitch: base + 0.13 },
+  }[emotion] || { rate: 1.0, pitch: base };
+  return { ...m, voice: pickVoice(name) };
 }
 
 /* ====================== kripto ====================== */
@@ -48,10 +67,18 @@ const yesterdayStr = () => new Date(Date.now() - 864e5).toISOString().slice(0, 1
 const weekScore = (r) => (r.recent || []).filter((x) => Date.now() - x.ts < 7 * 864e5).reduce((s, x) => s + x.score, 0);
 
 /* ====================== katalog ====================== */
+const PRODUCTS = `GÜNCEL APPLE TÜRKİYE LİSTESİ (Mayıs 2026, başlangıç fiyatları):
+iPhone: iPhone 17e 59.999₺ · iPhone 17 84.999₺ · iPhone Air 107.999₺ · iPhone 17 Pro 119.999₺ · iPhone 17 Pro Max 132.999₺ (2TB 188.999₺).
+AirPods: AirPods 4 8.999₺ · AirPods Pro 3 15.499₺ · AirPods Max 2.
+Apple Watch: Watch SE 3 15.499₺ · Watch Series 11 23.999₺ · Watch Ultra 3 65.999₺.
+Mac/iPad: güncel M-serisi MacBook Air/Pro, iPad / iPad Air / iPad Pro.
+Cihaz Sigortası: hasar/kaza koruması sunan ek paket.
+Fiyatlar yaklaşık ve değişebilir; kesin fiyat apple.com.tr'dedir.`;
+
 const DIFF = { kolay: { label: "Kolay", cls: "bg-emerald-100 text-emerald-700" }, orta: { label: "Orta", cls: "bg-amber-100 text-amber-700" }, zor: { label: "Zor", cls: "bg-rose-100 text-rose-700" } };
 
 const BASE_CATALOG = [
-  { id: "iph-ac", emoji: "📱", product: "iPhone 17", kpi: "AppleCare+ Attach", diff: "orta", name: "Kaan", mood: "supheci", brief: "İlk kez AppleCare+ düşünüyor, 'ben düşürmem' diyor.", persona: "Sen Kaan, 34. Sahada çalışıyorsun, telefon hep elinde. AppleCare+'a mesafelisin. İtirazların: 'pahalı', 'gerek yok'. Onarım maliyeti + gönül rahatlığı somut anlatılırsa yumuşa; baskıda diren. Eşinin de kullanacağı çıkarsa ikna ol." },
+  { id: "iph-ac", emoji: "📱", product: "iPhone 17", kpi: "Sigorta Attach", diff: "orta", name: "Kaan", mood: "supheci", brief: "İlk kez cihaz sigortası düşünüyor, 'ben düşürmem' diyor.", persona: "Sen Kaan, 34. Sahada çalışıyorsun, telefon hep elinde. cihaz sigortası'a mesafelisin. İtirazların: 'pahalı', 'gerek yok'. Onarım maliyeti + gönül rahatlığı somut anlatılırsa yumuşa; baskıda diren. Eşinin de kullanacağı çıkarsa ikna ol." },
   { id: "mac-up", emoji: "💻", product: "MacBook Air → Pro", kpi: "Mac Upgrade", diff: "zor", name: "Selin", mood: "dusunuyor", brief: "MacBook Air'a karar verdi ama işi Pro gerektirebilir.", persona: "Sen Selin, 29, video editörü. Air'a karar verdin, bütçen kısıtlı. İtirazların: 'Air yeter', 'Pro pahalı'. İş yükün (4K kurgu) öğrenilip Pro'nun zaman kazandırdığı rakamla anlatılırsa ikna olmaya başla; sadece 'daha güçlü' derse diren. Kolay ikna olma." },
   { id: "airpods", emoji: "🎧", product: "AirPods + aksesuar", kpi: "Aksesuar Attach", diff: "kolay", name: "Elif", mood: "ilgili", brief: "iPhone aldı, aksesuar düşünmüyor ama açık.", persona: "Sen Elif, 26. Yeni iPhone aldın, keyiflisin. Aksesuar düşünmedin ama açıksın. İtirazın hafif: 'sonra bakarım'. Spor/müzik alışkanlığın öğrenilip AirPods ona göre konumlandırılırsa hızlı ikna ol." },
   { id: "tradein", emoji: "🔄", product: "iPhone 13 takas", kpi: "Trade-In", diff: "orta", name: "Murat", mood: "dusunuyor", brief: "Eski telefonunu takas etmeyi düşünüyor ama tereddütlü.", persona: "Sen Murat, 41. iPhone 13'ünü vermeyi düşünüyorsun ama 'ikinci elde daha çok eder' diyorsun. İtirazın: 'takasta az veriyorlar'. Güvenlik, kolaylık, anlık indirim anlatılırsa ikna ol; geçiştirilirse vazgeç." },
@@ -59,16 +86,18 @@ const BASE_CATALOG = [
   { id: "watch", emoji: "⌚", product: "Apple Watch", kpi: "Watch Attach", diff: "kolay", name: "Aslı", mood: "ilgili", brief: "Spora başladı, Watch'a sıcak bakıyor.", persona: "Sen Aslı, 31. Koşuya başladın, Watch merak ediyorsun ama 'telefonum var, gerek var mı' diyorsun. Nabız, koşu metrikleri, hedef takibi anlatılırsa hızlı ikna ol." },
   { id: "ipad", emoji: "✏️", product: "iPad + Pencil + Klavye", kpi: "iPad Attach", diff: "orta", name: "Deniz", mood: "dusunuyor", brief: "Öğrenci, sadece iPad düşünüyor; aksesuarsız.", persona: "Sen Deniz, 20, mimarlık öğrencisi. iPad istiyorsun, 'çıplak iPad yeter' diyorsun. İtirazın: 'öğrenci bütçesi'. Not + çizim ihtiyacın öğrenilip Pencil ve klavye gerekçelenirse ikna ol." },
   { id: "premium", emoji: "🏆", product: "iPhone + Mac + Koruma", kpi: "Premium Satış", diff: "zor", name: "Mehmet Bey", mood: "supheci", brief: "Pazarlıkçı işletme sahibi, çoklu cihaz alabilir.", persona: "Sen Mehmet Bey, 48, işletme sahibi. Kendine iPhone, ekibe Mac düşünüyorsun ama pazarlıkçı ve şüphecisin. İtirazların: 'indirim yok mu', 'koruma şart mı'. İşine somut katkı anlatılırsa açıl; özellik sayan temsilciye soğu. Zorlu pazarlık yap." },
-  { id: "rakip", emoji: "🏷️", product: "iPhone 17 (fiyat itirazı)", kpi: "AppleCare+ Attach", diff: "zor", name: "Tolga", mood: "supheci", brief: "'Teknosa'da daha ucuz' diyerek geliyor.", persona: "Sen Tolga, 35. Telefonu başka yerde daha ucuz gördün ve bunu sürekli dile getiriyorsun: 'Teknosa'da indirimliydi'. İtirazların fiyat odaklı. Temsilci sadece fiyatı savunursa soğu; APR farkını (kurulum, güven, AppleCare+, hizmet) değer üzerinden anlatırsa yumuşa. Zorlu ol." },
-  { id: "iade", emoji: "😤", product: "Şikâyet / iade", kpi: "İtiraz Yönetimi", diff: "zor", name: "Ayşe", mood: "tereddut", brief: "Önceki deneyimi kötü, sinirli ve dirençli.", persona: "Sen Ayşe, 44. Daha önce bir cihazda sorun yaşadın, sinirli ve güvensiz geldin. Önce şikâyet ediyorsun. Temsilci seni dinler, empati kurar ve çözüm sunarsa sakinleş; savunmaya geçer ya da geçiştirirse daha da sinirlen. Sakinleşirsen yeni alışverişe açıl." },
+  { id: "rakip", emoji: "🏷️", product: "iPhone 17 (fiyat itirazı)", kpi: "Sigorta Attach", diff: "zor", name: "Tolga", mood: "supheci", brief: "'Teknosa'da daha ucuz' diyerek geliyor.", persona: "Sen Tolga, 35. Telefonu başka yerde daha ucuz gördün ve bunu sürekli dile getiriyorsun: 'Teknosa'da indirimliydi'. İtirazların fiyat odaklı. Temsilci sadece fiyatı savunursa soğu; APR farkını (kurulum, güven, cihaz sigortası, hizmet) değer üzerinden anlatırsa yumuşa. Zorlu ol." },
+  { id: "iade", emoji: "😤", product: "Şikâyet / iade", kpi: "İtiraz Yönetimi", diff: "zor", name: "Ayşe", mood: "sinirli", brief: "Önceki deneyimi kötü, sinirli ve dirençli.", persona: "Sen Ayşe, 44. Daha önce bir cihazda sorun yaşadın, sinirli ve güvensiz geldin. Önce şikâyet ediyorsun. Temsilci seni dinler, empati kurar ve çözüm sunarsa sakinleş; savunmaya geçer ya da geçiştirirse daha da sinirlen. Sakinleşirsen yeni alışverişe açıl." },
   { id: "lansman", emoji: "🚀", product: "iPhone 17 lansman", kpi: "Premium Satış", diff: "orta", name: "Can", mood: "ilgili", brief: "Lansman haftası, heyecanlı ama kararsız (Pro mu, normal mi).", persona: "Sen Can, 28. iPhone 17 lansmanında heyecanlısın ama Pro mu normal mi kararsızsın. İtirazın yok ama yönlendirilmek istiyorsun. İhtiyacın (kamera, oyun, saklama) keşfedilip doğru modele + korumaya yönlendirilirse hızlı ikna ol." },
   { id: "cr", emoji: "🚶", product: "Vitrin müşterisi", kpi: "Dönüşüm (CR)", diff: "orta", name: "Burcu", mood: "supheci", brief: "Sadece bakıyor, 'şöyle bir bakıyorum' diyor; çıkmak üzere.", persona: "Sen Burcu, 33. Sadece vitrine bakıyorsun, almaya niyetin belirsiz. Temsilci seni etiketlemeden ihtiyacını keşfeder ve değer gösterirse kal; ısrarcı/robotik olursa 'sağ olun bakıyorum' deyip çıkmaya yönel (leave:true)." },
 ];
 
-const SCENARIO_SYSTEM = `Apple Premium Reseller (Türkiye) için GERÇEKÇİ, çeşitli bir satış prova müşterisi üret. SADECE JSON: {"name":"isim","product":"ürün","kpi":"AppleCare+ Attach|Aksesuar Attach|Mac Upgrade|Trade-In|Finansman|Watch Attach|iPad Attach|Premium Satış","diff":"kolay|orta|zor","brief":"tek cümle","mood":"supheci|dusunuyor|tereddut|ilgili","emoji":"tek emoji","persona":"4-6 cümle, itirazlar dahil"}`;
+const SCENARIO_SYSTEM = `Apple Premium Reseller (Türkiye) için GERÇEKÇİ, çeşitli bir satış prova müşterisi üret. Ürün/fiyat verirsen şu güncel listeden seç:
+${PRODUCTS}
+SADECE JSON: {"name":"isim","product":"ürün","kpi":"Sigorta Attach|Aksesuar Attach|Mac Upgrade|Trade-In|Finansman|Watch Attach|iPad Attach|Premium Satış","diff":"kolay|orta|zor","brief":"tek cümle","mood":"supheci|dusunuyor|tereddut|ilgili|sinirli","emoji":"tek emoji","persona":"4-6 cümle, itirazlar dahil"}`;
 
 const QUIZ = [
-  { q: "AppleCare+ teklifi için en doğru an hangisi?", a: ["Müşteri vitrindeyken", "İhtiyaç keşfinden sonra", "Ödeme bittikten sonra"], c: 1 },
+  { q: "cihaz sigortası teklifi için en doğru an hangisi?", a: ["Müşteri vitrindeyken", "İhtiyaç keşfinden sonra", "Ödeme bittikten sonra"], c: 1 },
   { q: "Yüksek attach için en etkili yaklaşım?", a: ["Fiyat vurgusu", "İhtiyaç + fayda eşleştirme", "İndirim sözü"], c: 1 },
   { q: "Trade-in müşteriye anında ne sağlar?", a: ["Anında indirim/kredi", "6 ay sonra ödeme", "Sadece geri dönüşüm"], c: 0 },
   { q: "Finansman itirazında doğru çerçeve?", a: ["Aylık küçük tutara bölmek", "Pahalı olduğunu kabul edip geçmek", "Konuyu değiştirmek"], c: 0 },
@@ -82,6 +111,7 @@ const MOODS = {
   tereddut: { label: "Tereddüt ediyor", emoji: "😟", text: "text-orange-700", bg: "bg-orange-50" },
   ilgili: { label: "İlgili", emoji: "🙂", text: "text-emerald-700", bg: "bg-emerald-50" },
   ikna: { label: "İkna oldu", emoji: "😄", text: "text-emerald-800", bg: "bg-emerald-100" },
+  sinirli: { label: "Sinirli", emoji: "😠", text: "text-rose-700", bg: "bg-rose-50" },
 };
 const AV_COLORS = ["bg-indigo-500", "bg-violet-500", "bg-rose-500", "bg-amber-500", "bg-emerald-500", "bg-sky-500", "bg-fuchsia-500", "bg-teal-500"];
 
@@ -100,11 +130,11 @@ const BADGES = [
 ];
 
 const SEED = [
-  { username: "Ahmet", bestScore: 94, sessions: 28, totalXp: 2240, color: "bg-indigo-500", store: "Kanyon", kpis: ["AppleCare+ Attach", "Mac Upgrade", "Finansman", "Premium Satış"] },
-  { username: "Emre", bestScore: 91, sessions: 21, totalXp: 1760, color: "bg-rose-500", store: "Akasya", kpis: ["AppleCare+ Attach", "Trade-In", "Aksesuar Attach"] },
+  { username: "Ahmet", bestScore: 94, sessions: 28, totalXp: 2240, color: "bg-indigo-500", store: "Kanyon", kpis: ["Sigorta Attach", "Mac Upgrade", "Finansman", "Premium Satış"] },
+  { username: "Emre", bestScore: 91, sessions: 21, totalXp: 1760, color: "bg-rose-500", store: "Akasya", kpis: ["Sigorta Attach", "Trade-In", "Aksesuar Attach"] },
   { username: "Zeynep", bestScore: 89, sessions: 17, totalXp: 1380, color: "bg-violet-500", store: "Kanyon", kpis: ["Watch Attach", "iPad Attach"] },
   { username: "Burak", bestScore: 85, sessions: 12, totalXp: 940, color: "bg-amber-500", store: "İstinyePark", kpis: ["Mac Upgrade", "Finansman"] },
-  { username: "Eda", bestScore: 82, sessions: 9, totalXp: 700, color: "bg-emerald-500", store: "Akasya", kpis: ["AppleCare+ Attach", "Watch Attach"] },
+  { username: "Eda", bestScore: 82, sessions: 9, totalXp: 700, color: "bg-emerald-500", store: "Akasya", kpis: ["Sigorta Attach", "Watch Attach"] },
 ];
 async function seedIfNeeded() {
   if (await sget("seed:v3", true)) return;
@@ -179,6 +209,7 @@ const FACE = {
   tereddut:  { browL: "M36 52 L52 45", browR: "M68 45 L84 52", mouth: "M48 90 Q60 83 72 90", blush: 0,   sweat: true,  happy: false },
   ilgili:    { browL: "M36 46 L52 47", browR: "M68 47 L84 46", mouth: "M48 84 Q60 92 72 84", blush: 0.5, sweat: false, happy: false },
   ikna:      { browL: "M36 44 L52 45", browR: "M68 45 L84 44", mouth: "M44 82 Q60 99 76 82", blush: 0.9, sweat: false, happy: true },
+  sinirli:   { browL: "M36 43 L52 52", browR: "M68 52 L84 43", mouth: "M48 92 Q60 84 72 92", blush: 0,   sweat: false, happy: false },
 };
 function CharacterFace({ mood = "supheci", talking, thinking }) {
   const f = FACE[mood] || FACE.supheci;
@@ -373,8 +404,11 @@ function PracticeTab({ user, catalog, onFinish, goHome }) {
 function buildCustomerSystem(s) {
   return `Sen bir Apple Premium Reseller mağazasında (Türkiye) alışveriş yapan GERÇEKÇİ bir müşterisin.
 ${s.persona}
+${PRODUCTS}
+Ürün adı/fiyatından söz ederken SADECE yukarıdaki güncel listeyi kullan; uydurma model ya da fiyat verme.
 KURALLAR: Asla satıcı gibi davranma, sadece müşteri ol. Kısa konuş (1-3 cümle). Baskıya diren, iyi keşif+somut faydaya yumuşa. Yeterince ikna olursan satın al: "done":true. Kötü yönetilirsen ya da senaryon gerektiriyorsa vazgeçip çık: "leave":true.
-Her yanıtında SADECE JSON: {"reply":"...","emotion":"ilgili|dusunuyor|tereddut|supheci|ikna","done":false,"leave":false}`;
+Ruh halini içeriğe göre seç: kızgın/şikâyetçiysen "sinirli", endişeli/kararsızsan "tereddut", ısınıyorsan "ilgili", ikna olduysan "ikna".
+Her yanıtında SADECE JSON: {"reply":"...","emotion":"ilgili|dusunuyor|tereddut|supheci|ikna|sinirli","done":false,"leave":false}`;
 }
 
 function Roleplay({ user, scenario, onResult, onQuit }) {
@@ -386,7 +420,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
   const [keyboard, setKeyboard] = useState(false);
   const ref = useRef(null), recogRef = useRef(null), apiRef = useRef([]), voiceRef = useRef(false), endedRef = useRef(false), thinkingRef = useRef(false), talkTimer = useRef(null);
   function pulseTalk(ms = 1400) { setTalking(true); if (talkTimer.current) clearTimeout(talkTimer.current); talkTimer.current = setTimeout(() => setTalking(false), ms); }
-  function sayOut(text, then) { setTalking(true); speak(text, () => { setTalking(false); then && then(); }); }
+  function sayOut(text, then, emotion) { setTalking(true); speak(text, () => { setTalking(false); then && then(); }, voiceFor(emotion || mood, scenario.name)); }
   useEffect(() => { const last = turns[turns.length - 1]; if (last && last.who === "c" && !voiceRef.current) pulseTalk(Math.min(4500, 900 + (last.text ? last.text.length : 0) * 38)); }, [turns]);
   useEffect(() => { voiceRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { endedRef.current = !!ended; }, [ended]);
@@ -409,7 +443,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
       apiRef.current = [...msgs, { role: "assistant", content: raw }];
       setTurns((x) => [...x, { who: "c", text: p.reply, emotion: p.emotion }]); setMood(p.emotion || mood);
       if (p.done) { setEnded("won"); endedRef.current = true; } else if (p.leave) { setEnded("lost"); endedRef.current = true; }
-      if (voiceRef.current) sayOut(p.reply, () => { if (voiceRef.current && !endedRef.current) startListen(); });
+      if (voiceRef.current) sayOut(p.reply, () => { if (voiceRef.current && !endedRef.current) startListen(); }, p.emotion);
     } catch { setErr("Yanıt alınamadı, tekrar gönder."); }
     setThinking(false); thinkingRef.current = false;
   }
@@ -433,7 +467,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
   function toggleVoice() {
     const nv = !voiceMode; setVoiceMode(nv); voiceRef.current = nv;
     if (!nv) { try { synth && synth.cancel(); } catch {} stopListen(); }
-    else { const last = [...turns].reverse().find((t) => t.who === "c"); if (last) sayOut(last.text, () => { if (voiceRef.current && !endedRef.current) startListen(); }); }
+    else { const last = [...turns].reverse().find((t) => t.who === "c"); if (last) sayOut(last.text, () => { if (voiceRef.current && !endedRef.current) startListen(); }, last.emotion); }
   }
   async function finish() {
     const reps = turns.filter((t) => t.who === "r").length; if (scoring || reps < 1) return;
@@ -473,7 +507,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
       </div>
       <div ref={ref} className="h-[24vh] min-h-[150px] space-y-3 overflow-y-auto rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         {turns.map((t, i) => t.who === "c" ? (
-          <div key={i} className="flex items-end gap-2"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm">{MOODS[t.emotion]?.emoji || "🙂"}</div><div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[14px] leading-relaxed text-slate-800">{t.text}<button onClick={() => sayOut(t.text)} title="Dinle" className="ml-1.5 inline-flex translate-y-0.5 text-slate-400 hover:text-indigo-600"><Volume2 className="h-3.5 w-3.5" /></button></div></div>
+          <div key={i} className="flex items-end gap-2"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm">{MOODS[t.emotion]?.emoji || "🙂"}</div><div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[14px] leading-relaxed text-slate-800">{t.text}<button onClick={() => sayOut(t.text, undefined, t.emotion)} title="Dinle" className="ml-1.5 inline-flex translate-y-0.5 text-slate-400 hover:text-indigo-600"><Volume2 className="h-3.5 w-3.5" /></button></div></div>
         ) : (
           <div key={i} className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-600 to-violet-600 px-3.5 py-2.5 text-[14px] leading-relaxed text-white">{t.text}</div></div>
         ))}
@@ -556,11 +590,11 @@ function ManagerTab({ board, catalog, reload }) {
   const [msg, setMsg] = useState(""); const [imp, setImp] = useState(null);
   const [hwUser, setHwUser] = useState(""), [hwScn, setHwScn] = useState(catalog[0]?.id || "");
   const [sel, setSel] = useState(""); const [showAdd, setShowAdd] = useState(false);
-  const [ns, setNs] = useState({ name: "", product: "", kpi: "AppleCare+ Attach", diff: "orta", emoji: "📱", brief: "", persona: "", mood: "supheci" });
+  const [ns, setNs] = useState({ name: "", product: "", kpi: "Sigorta Attach", diff: "orta", emoji: "📱", brief: "", persona: "", mood: "supheci" });
   const selRec = team.find((r) => r.username === sel);
 
   function downloadTemplate() {
-    const rows = [["Satici", "KPI", "Gercek", "Hedef"], ["ugur", "AppleCare+ Attach", 18, 25], ["ugur", "Aksesuar Attach", 32, 40], ["Ahmet", "Mac Upgrade", 22, 30]];
+    const rows = [["Satici", "KPI", "Gercek", "Hedef"], ["ugur", "Sigorta Attach", 18, 25], ["ugur", "Aksesuar Attach", 32, 40], ["Ahmet", "Mac Upgrade", 22, 30]];
     const ws = XLSX.utils.aoa_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Satislar"); XLSX.writeFile(wb, "satis-sablon.xlsx");
   }
   async function onFile(e) {
