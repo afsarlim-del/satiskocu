@@ -54,12 +54,13 @@ export async function onRequestPost(context) {
     const { system, messages } = await request.json();
 
     const chain = [];
+    if (env.OPENAI_API_KEY) chain.push({ name: "openai", fn: () => callOpenAICompat("https://api.openai.com/v1", env.OPENAI_API_KEY, env.OPENAI_MODEL || "gpt-4o-mini", system, messages) });
     if (env.GEMINI_API_KEY) chain.push({ name: "gemini", fn: () => callGemini(env, system, messages) });
     if (env.GROQ_API_KEY) chain.push({ name: "groq", fn: () => callOpenAICompat("https://api.groq.com/openai/v1", env.GROQ_API_KEY, env.GROQ_MODEL || "llama-3.3-70b-versatile", system, messages) });
     if (env.OPENROUTER_API_KEY && env.OPENROUTER_MODEL) chain.push({ name: "openrouter", fn: () => callOpenAICompat("https://openrouter.ai/api/v1", env.OPENROUTER_API_KEY, env.OPENROUTER_MODEL, system, messages) });
     if (env.MISTRAL_API_KEY) chain.push({ name: "mistral", fn: () => callOpenAICompat("https://api.mistral.ai/v1", env.MISTRAL_API_KEY, env.MISTRAL_MODEL || "mistral-small-latest", system, messages) });
 
-    if (!chain.length) return json({ text: "", error: "Hiç API anahtarı tanımlı değil (GEMINI_API_KEY ya da GROQ_API_KEY ekle)" }, 500);
+    if (!chain.length) return json({ text: "", error: "Hiç API anahtarı tanımlı değil (OPENAI_API_KEY, GEMINI_API_KEY ya da GROQ_API_KEY ekle)" }, 500);
 
     const errs = [];
     for (const p of chain) {
