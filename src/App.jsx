@@ -5,6 +5,7 @@ import {
   Swords, User, ChevronRight, Zap, Crown, Dices, Mic, Volume2, VolumeX,
   Flame, Lightbulb, Users, BarChart3, BookOpen, Plus, ShieldAlert, CalendarDays, X, Check,
   Upload, Download, Activity, Wand2,
+  Moon, Sun, ListChecks,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { callClaude, sget, sset, slist } from "./api.js";
@@ -75,6 +76,15 @@ Mac/iPad: güncel M-serisi MacBook Air/Pro, iPad / iPad Air / iPad Pro.
 Cihaz Sigortası: hasar/kaza koruması sunan ek paket.
 Fiyatlar yaklaşık ve değişebilir; kesin fiyat apple.com.tr'dedir.`;
 
+const DAILY_TASKS = [
+  { id: "prova", emoji: "🎯", label: "1 prova tamamla", xp: 20 },
+  { id: "capraz", emoji: "🔗", label: "3 çapraz satış öner", xp: 15 },
+  { id: "sigorta", emoji: "🛡️", label: "1 müşteriye Cihaz Sigortası öner", xp: 15 },
+  { id: "aksesuar", emoji: "🎧", label: "1 aksesuar ek satışı yap", xp: 15 },
+  { id: "egitim", emoji: "📚", label: "Yeni ürün eğitimini gözden geçir", xp: 10 },
+];
+const OBJECTIONS = ["Çok pahalı", "Düşünüp geleceğim", "Teknosa'da daha ucuz", "Sigortaya gerek yok", "İnternetten alırım", "Eski telefonum yeterli"];
+
 const DIFF = { kolay: { label: "Kolay", cls: "bg-emerald-100 text-emerald-700" }, orta: { label: "Orta", cls: "bg-amber-100 text-amber-700" }, zor: { label: "Zor", cls: "bg-rose-100 text-rose-700" } };
 
 const BASE_CATALOG = [
@@ -90,6 +100,7 @@ const BASE_CATALOG = [
   { id: "iade", emoji: "😤", product: "Şikâyet / iade", kpi: "İtiraz Yönetimi", diff: "zor", name: "Ayşe", mood: "sinirli", brief: "Önceki deneyimi kötü, sinirli ve dirençli.", persona: "Sen Ayşe, 44. Daha önce bir cihazda sorun yaşadın, sinirli ve güvensiz geldin. Önce şikâyet ediyorsun. Temsilci seni dinler, empati kurar ve çözüm sunarsa sakinleş; savunmaya geçer ya da geçiştirirse daha da sinirlen. Sakinleşirsen yeni alışverişe açıl." },
   { id: "lansman", emoji: "🚀", product: "iPhone 17 lansman", kpi: "Premium Satış", diff: "orta", name: "Can", mood: "ilgili", brief: "Lansman haftası, heyecanlı ama kararsız (Pro mu, normal mi).", persona: "Sen Can, 28. iPhone 17 lansmanında heyecanlısın ama Pro mu normal mi kararsızsın. İtirazın yok ama yönlendirilmek istiyorsun. İhtiyacın (kamera, oyun, saklama) keşfedilip doğru modele + korumaya yönlendirilirse hızlı ikna ol." },
   { id: "cr", emoji: "🚶", product: "Vitrin müşterisi", kpi: "Dönüşüm (CR)", diff: "orta", name: "Burcu", mood: "supheci", brief: "Sadece bakıyor, 'şöyle bir bakıyorum' diyor; çıkmak üzere.", persona: "Sen Burcu, 33. Sadece vitrine bakıyorsun, almaya niyetin belirsiz. Temsilci seni etiketlemeden ihtiyacını keşfeder ve değer gösterirse kal; ısrarcı/robotik olursa 'sağ olun bakıyorum' deyip çıkmaya yönel (leave:true)." },
+  { id: "kapanis", emoji: "🤝", product: "iPhone 17 Pro (kararsız)", kpi: "Satış Kapatma", diff: "zor", name: "Okan", mood: "dusunuyor", brief: "Her şeyi beğendi ama bir türlü 'tamam' demiyor; kapatma tekniği şart.", persona: "Sen Okan, 38. Ürünü beğendin, soruların bitti ama karar vermekten kaçıyorsun: 'bir düşüneyim', 'belki sonra geçerim'. Gerçek bir itirazın yok, sadece kararsızsın ve oyalanıyorsun. KURAL: Temsilci zayıf kapatırsa (sadece 'buyrun isterseniz', 'düşünün') oyalan ve 'düşüneyim' deyip çık (leave:true). Ancak temsilci NET bir kapanış tekniği kullanırsa ikna ol ve al (done:true): varsayımsal kapanış ('paketleyeyim mi'), iki seçenekten birini sundurma ('256 mı 512 mi'), aciliyet/kıtlık ('bu renk son'), ya da özet + net çağrı. Lafı uzatıp kapatmayı denemeyen temsilciden sıkıl." },
 ];
 
 const SCENARIO_SYSTEM = `Apple Premium Reseller (Türkiye) için GERÇEKÇİ, çeşitli bir satış prova müşterisi üret. Ürün/fiyat verirsen şu güncel listeden seç:
@@ -103,6 +114,12 @@ const QUIZ = [
   { q: "Finansman itirazında doğru çerçeve?", a: ["Aylık küçük tutara bölmek", "Pahalı olduğunu kabul edip geçmek", "Konuyu değiştirmek"], c: 0 },
   { q: "Premium satışta işlem değerini artıran?", a: ["Tek ürün", "Paket + koruma", "Sadece kampanya"], c: 1 },
   { q: "Rakip 'daha ucuz' itirazında en iyi cevap?", a: ["Hemen fiyat kırmak", "Değer farkını (hizmet, güven, koruma) anlatmak", "Tartışmak"], c: 1 },
+  { q: "Kararsız müşteriyi kapatmak için en etkili teknik?", a: ["Daha fazla özellik saymak", "İki seçenekten birini sundurmak", "Düşünmesi için yalnız bırakmak"], c: 1 },
+  { q: "İhtiyaç keşfinde en değerli soru tipi?", a: ["Evet/hayır soruları", "Açık uçlu sorular", "Yönlendirici kapanış soruları"], c: 1 },
+  { q: "Sinirli/şikâyetçi müşteride ilk adım?", a: ["Hemen savunmaya geçmek", "Dinleyip empati kurmak", "Başka ürün önermek"], c: 1 },
+  { q: "AirPods çapraz satışı için en doğru an?", a: ["iPhone kararından sonra kullanım alışkanlığına göre", "Müşteri içeri girer girmez", "Kasada son anda"], c: 0 },
+  { q: "Aksesuar attach'ında en ikna edici çerçeve?", a: ["'Herkes alıyor'", "Cihazı koruma + günlük fayda", "İndirim baskısı"], c: 1 },
+  { q: "Watch satışında en güçlü konumlandırma?", a: ["Sadece bildirim", "Sağlık + spor hedef takibi", "Sadece şıklık"], c: 1 },
 ];
 
 const MOODS = {
@@ -116,7 +133,7 @@ const MOODS = {
 const AV_COLORS = ["bg-indigo-500", "bg-violet-500", "bg-rose-500", "bg-amber-500", "bg-emerald-500", "bg-sky-500", "bg-fuchsia-500", "bg-teal-500"];
 
 function levelInfo(xp = 0) {
-  const per = 400, level = Math.floor(xp / per) + 1, into = xp - (level - 1) * per;
+  const per = 600, level = Math.floor(xp / per) + 1, into = xp - (level - 1) * per;
   const titles = ["Çırak", "Çırak", "Danışman", "Danışman", "Uzman", "Uzman", "Kıdemli", "Kıdemli", "Usta Koç"];
   return { level, pct: Math.round((into / per) * 100), into, per, title: titles[Math.min(level - 1, titles.length - 1)], nextXp: per - into };
 }
@@ -156,7 +173,10 @@ export default function App() {
   const [board, setBoard] = useState([]);
   const [manager, setManager] = useState(false);
   const [custom, setCustom] = useState([]);
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem("sk-theme") || "light"; } catch { return "light"; } });
   const catalog = useMemo(() => [...BASE_CATALOG, ...custom], [custom]);
+  useEffect(() => { try { localStorage.setItem("sk-theme", theme); } catch {} }, [theme]);
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   useEffect(() => { (async () => {
     await seedIfNeeded();
@@ -165,6 +185,16 @@ export default function App() {
     if (sess && sess.username) { const rec = await sget(ukey(sess.username)); if (rec) { setManager(!!sess.manager); await load(sess.username); setScreen("app"); return; } }
     setScreen("auth");
   })(); }, []);
+
+  // Canlı liderlik: düzenli yenile + ilgili sekmeye geçince yenile
+  useEffect(() => {
+    if (screen !== "app" || !user) return;
+    const id = setInterval(() => { load(user.username); }, 20000);
+    return () => clearInterval(id);
+  }, [screen, user && user.username]);
+  useEffect(() => {
+    if (screen === "app" && user && (tab === "home" || tab === "board" || tab === "mgr")) load(user.username);
+  }, [tab]);
 
   async function load(username) {
     setUser({ username });
@@ -180,18 +210,19 @@ export default function App() {
   async function becomeManager() { setManager(true); await sset("session", { username: user.username, manager: true }, false); }
 
   if (screen === "loading") return <div className="flex min-h-screen items-center justify-center bg-slate-50"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>;
-  if (screen === "auth") return <><Style /><Auth onAuthed={onAuthed} /></>;
+  if (screen === "auth") return <div className={theme === "dark" ? "sk-dark" : ""}><Style /><Auth onAuthed={onAuthed} /></div>;
 
   const myRank = board.findIndex((b) => b.username.toLowerCase() === user.username.toLowerCase()) + 1;
   const reload = () => load(user.username);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+    <div className={`min-h-screen bg-slate-50 font-sans text-slate-900 antialiased ${theme === "dark" ? "sk-dark" : ""}`}>
       <Style />
       <div className="mx-auto max-w-md px-4 pb-24 pt-5">
-        <TopBar user={user} me={me} onLogout={logout} manager={manager} />
-        {tab === "home" && <HomeTab user={user} me={me} board={board} myRank={myRank} catalog={catalog} onBoard={() => setTab("board")} onLaunch={(sc) => { window.__launch = sc; setTab("play"); }} />}
+        <TopBar user={user} me={me} onLogout={logout} manager={manager} theme={theme} onToggleTheme={toggleTheme} />
+        {tab === "home" && <HomeTab user={user} me={me} board={board} myRank={myRank} catalog={catalog} onBoard={() => setTab("board")} onLaunch={(sc) => { window.__launch = sc; setTab("play"); }} onUpdate={reload} />}
         {tab === "play" && <PracticeTab user={user} catalog={catalog} onFinish={reload} goHome={() => setTab("home")} />}
+        {tab === "coach" && <CoachTab />}
         {tab === "board" && <LeaderboardTab board={board} user={user} />}
         {tab === "profile" && <ProfileTab me={me} user={user} myRank={myRank} manager={manager} onBecomeManager={becomeManager} />}
         {tab === "mgr" && manager && <ManagerTab board={board} catalog={catalog} reload={reload} />}
@@ -201,7 +232,7 @@ export default function App() {
   );
 }
 
-function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}@keyframes skBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}@keyframes skTalk{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.05)}}@keyframes skBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@keyframes skWave{0%,100%{opacity:.3}50%{opacity:1}}@keyframes skThink{0%,100%{opacity:.4}50%{opacity:1}}.sk-eyes{transform-box:fill-box;transform-origin:center;animation:skBlink 4.2s infinite}.sk-talk{transform-box:fill-box;transform-origin:center;animation:skTalk .24s infinite}.sk-bob{animation:skBob 3.6s ease-in-out infinite}.sk-wave{animation:skWave .9s ease-in-out infinite}.sk-think{animation:skThink 1.1s ease-in-out infinite}` }} />; }
+function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}@keyframes skBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}@keyframes skTalk{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.05)}}@keyframes skBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@keyframes skWave{0%,100%{opacity:.3}50%{opacity:1}}@keyframes skThink{0%,100%{opacity:.4}50%{opacity:1}}.sk-eyes{transform-box:fill-box;transform-origin:center;animation:skBlink 4.2s infinite}.sk-talk{transform-box:fill-box;transform-origin:center;animation:skTalk .24s infinite}.sk-bob{animation:skBob 3.6s ease-in-out infinite}.sk-wave{animation:skWave .9s ease-in-out infinite}.sk-think{animation:skThink 1.1s ease-in-out infinite}.sk-dark{color-scheme:dark}.sk-dark .bg-slate-50{background-color:#0b1220!important}.sk-dark .bg-white{background-color:#1e293b!important}.sk-dark .bg-slate-100{background-color:#334155!important}.sk-dark .bg-slate-200{background-color:#475569!important}.sk-dark .text-slate-900{color:#f1f5f9!important}.sk-dark .text-slate-800{color:#e2e8f0!important}.sk-dark .text-slate-700{color:#cbd5e1!important}.sk-dark .text-slate-600{color:#cbd5e1!important}.sk-dark .text-slate-500{color:#94a3b8!important}.sk-dark .text-slate-400{color:#94a3b8!important}.sk-dark .ring-slate-200{--tw-ring-color:#334155!important}.sk-dark .ring-slate-100{--tw-ring-color:#334155!important}.sk-dark .border-slate-200,.sk-dark .border-slate-100{border-color:#334155!important}.sk-dark .bg-indigo-50{background-color:#312e81!important}.sk-dark .bg-emerald-50{background-color:#064e3b!important}.sk-dark .bg-amber-50{background-color:#422006!important}.sk-dark .bg-rose-50{background-color:#4c0519!important}.sk-dark .bg-orange-50{background-color:#431407!important}.sk-dark .bg-emerald-100{background-color:#065f46!important}.sk-dark .bg-amber-100{background-color:#78350f!important}.sk-dark .bg-rose-100{background-color:#881337!important}.sk-dark .bg-emerald-50,.sk-dark .bg-amber-50,.sk-dark .bg-rose-50,.sk-dark .bg-orange-50,.sk-dark .bg-indigo-50{--tw-ring-color:#475569!important}.sk-dark .border-t{border-color:#334155!important}` }} />; }
 
 const FACE = {
   supheci:   { browL: "M36 47 L52 51", browR: "M68 51 L84 47", mouth: "M48 86 Q60 85 72 86", blush: 0,   sweat: false, happy: false },
@@ -252,12 +283,15 @@ function CharacterFace({ mood = "supheci", talking, thinking }) {
   );
 }
 
-function TopBar({ user, me, onLogout, manager }) {
+function TopBar({ user, me, onLogout, manager, theme, onToggleTheme }) {
   const lv = levelInfo(me?.totalXp || 0);
   return (
     <div className="mb-4 flex items-center justify-between">
       <div className="flex items-center gap-2.5"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600"><Sparkles className="h-5 w-5 text-white" strokeWidth={2.2} /></div><div><div className="text-[15px] font-bold leading-tight tracking-tight">Satış Koçu</div><div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500">{manager ? "Yönetici · Panel" : `Lv ${lv.level} · ${lv.title}`}</div></div></div>
-      <button onClick={onLogout} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">{user.username} <LogOut className="h-3 w-3 text-slate-400" /></button>
+      <div className="flex items-center gap-2">
+        <button onClick={onToggleTheme} title="Tema" className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">{theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+        <button onClick={onLogout} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">{user.username} <LogOut className="h-3 w-3 text-slate-400" /></button>
+      </div>
     </div>
   );
 }
@@ -306,17 +340,28 @@ function Auth({ onAuthed }) {
 function convPct(me) { const w = me?.outcomes?.won || 0, l = me?.outcomes?.lost || 0; return w + l ? Math.round((w / (w + l)) * 100) + "%" : "—"; }
 function Stat({ label, value, accent }) { return <div className={`rounded-2xl px-3 py-3.5 text-center ring-1 ${accent ? "bg-indigo-50 ring-indigo-100" : "bg-white ring-slate-200"}`}><div className={`text-xl font-bold tracking-tight ${accent ? "text-indigo-700" : ""}`}>{value}</div><div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</div></div>; }
 
-function HomeTab({ user, me, board, myRank, catalog, onBoard, onLaunch }) {
+function HomeTab({ user, me, board, myRank, catalog, onBoard, onLaunch, onUpdate }) {
   const lv = levelInfo(me?.totalXp || 0);
   const top3 = board.slice(0, 3);
   const daily = catalog[new Date().getDate() % catalog.length];
   const dailyDone = me?.dailyDone === todayStr();
   const hw = me?.homework ? catalog.find((s) => s.id === me.homework.scenarioId) : null;
+  const today = todayStr();
+  const taskDone = me?.daily && me.daily.date === today ? me.daily.done || {} : {};
+  const doneCount = Object.keys(taskDone).length;
+  async function completeTask(t) {
+    if (taskDone[t.id]) return;
+    const rec = await sget(skey(user.username)); if (!rec) return;
+    const d = rec.daily && rec.daily.date === today ? rec.daily : { date: today, done: {} };
+    if (!d.done[t.id]) { d.done[t.id] = true; rec.totalXp = (rec.totalXp || 0) + t.xp; }
+    rec.daily = d; await sset(skey(user.username), rec); onUpdate && onUpdate();
+  }
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 p-5 text-white shadow-md fade-up">
-        <div className="flex items-center justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300">Seviye {lv.level} · {lv.title}</div><div className="mt-1 text-3xl font-bold tracking-tight">{me?.bestScore || 0}<span className="ml-1 text-sm font-medium text-slate-400">en iyi</span></div></div><div className="space-y-1 text-right"><div className="flex items-center justify-end gap-1 text-amber-300"><Zap className="h-4 w-4" /><span className="text-lg font-bold">{me?.totalXp || 0}</span></div><div className="flex items-center justify-end gap-1 text-orange-300"><Flame className="h-3.5 w-3.5" /><span className="text-xs font-bold">{me?.streak || 0} gün</span></div></div></div>
-        <div className="mt-4"><div className="mb-1 flex justify-between text-[11px] text-slate-400"><span>Lv {lv.level}</span><span>{lv.nextXp} XP kaldı</span></div><div className="h-2 w-full overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: `${lv.pct}%` }} /></div></div>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-950 p-5 text-white shadow-xl fade-up">
+        <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-indigo-500/30 blur-2xl" /><div className="pointer-events-none absolute -bottom-14 -left-8 h-32 w-32 rounded-full bg-fuchsia-500/20 blur-2xl" />
+        <div className="relative flex items-center justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300">Seviye {lv.level} · {lv.title}</div><div className="mt-1 text-3xl font-bold tracking-tight">{me?.bestScore || 0}<span className="ml-1 text-sm font-medium text-slate-400">en iyi</span></div></div><div className="space-y-1 text-right"><div className="flex items-center justify-end gap-1 text-amber-300"><Zap className="h-4 w-4" /><span className="text-lg font-bold">{me?.totalXp || 0}</span></div><div className="flex items-center justify-end gap-1 text-orange-300"><Flame className="h-3.5 w-3.5" /><span className="text-xs font-bold">{me?.streak || 0} gün</span></div></div></div>
+        <div className="relative mt-4"><div className="mb-1 flex justify-between text-[11px] text-slate-400"><span>Lv {lv.level}</span><span>{lv.nextXp} XP kaldı</span></div><div className="h-2 w-full overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: `${lv.pct}%` }} /></div></div>
       </div>
 
       {hw && <div className="flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200 fade-up"><div className="flex items-center gap-2.5"><span className="text-xl">{hw.emoji}</span><div><div className="text-[11px] font-bold uppercase tracking-wide text-amber-600">Yöneticinden ödev</div><div className="text-sm font-semibold text-amber-900">{hw.kpi}</div></div></div><button onClick={() => onLaunch(hw)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white">Başla</button></div>}
@@ -324,6 +369,19 @@ function HomeTab({ user, me, board, myRank, catalog, onBoard, onLaunch }) {
       <button onClick={() => !dailyDone && onLaunch({ ...daily, daily: true })} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3.5 fade-up ${dailyDone ? "bg-emerald-50 ring-1 ring-emerald-200" : "bg-white ring-1 ring-slate-200 hover:ring-indigo-300"}`}><div className="flex items-center gap-3"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${dailyDone ? "bg-emerald-100" : "bg-indigo-50"}`}>{dailyDone ? <Check className="h-5 w-5 text-emerald-600" /> : <CalendarDays className="h-5 w-5 text-indigo-600" />}</div><div className="text-left"><div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Günün Provası {!dailyDone && "· +30 XP"}</div><div className="text-sm font-bold">{dailyDone ? "Bugün tamamlandı 🎉" : `${daily.emoji} ${daily.kpi}`}</div></div></div>{!dailyDone && <ArrowRight className="h-5 w-5 text-slate-400" />}</button>
 
       <div className="grid grid-cols-3 gap-3"><Stat label="Sıralama" value={myRank ? "#" + myRank : "—"} accent /><Stat label="Prova" value={me?.sessions || 0} /><Stat label="Dönüşüm" value={convPct(me)} /></div>
+
+      <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 fade-up">
+        <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2 text-sm font-bold"><ListChecks className="h-4 w-4 text-indigo-600" /> Günlük Görevler</div><span className="text-[11px] font-semibold text-slate-400">{doneCount}/{DAILY_TASKS.length}</span></div>
+        <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all" style={{ width: `${(doneCount / DAILY_TASKS.length) * 100}%` }} /></div>
+        <div className="space-y-2">{DAILY_TASKS.map((t) => { const done = !!taskDone[t.id]; return (
+          <button key={t.id} onClick={() => completeTask(t)} disabled={done} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 ${done ? "bg-emerald-50 ring-emerald-200" : "bg-slate-50 ring-slate-200 hover:ring-indigo-300"}`}>
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${done ? "bg-emerald-500 text-white" : "bg-white ring-1 ring-slate-300"}`}>{done && <Check className="h-3.5 w-3.5" />}</div>
+            <span className="text-base">{t.emoji}</span>
+            <span className={`flex-1 text-[13px] font-medium ${done ? "text-emerald-700 line-through" : "text-slate-700"}`}>{t.label}</span>
+            <span className={`text-[11px] font-bold ${done ? "text-emerald-600" : "text-amber-600"}`}>+{t.xp}</span>
+          </button>); })}</div>
+        {doneCount === DAILY_TASKS.length && <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-[12px] font-bold text-emerald-700 ring-1 ring-emerald-200">Tüm görevler bitti, harikasın! 🎉</div>}
+      </div>
 
       <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 fade-up"><div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2 text-sm font-bold"><Trophy className="h-4 w-4 text-amber-500" /> Liderlik</div><button onClick={onBoard} className="flex items-center text-xs font-semibold text-indigo-600">Tümü <ChevronRight className="h-3.5 w-3.5" /></button></div><div className="space-y-1.5">{top3.map((r, i) => <Row key={r.username} r={r} i={i} myName={user.username} />)}</div></div>
     </div>
@@ -387,19 +445,86 @@ function PracticeTab({ user, catalog, onFinish, goHome }) {
   useEffect(() => { if (window.__launch) { setScenario(window.__launch); setView("play"); window.__launch = null; } }, []);
   async function genAI() { setGenBusy(true); try { const s = looseJSON(await callClaude(SCENARIO_SYSTEM, [{ role: "user", content: "Yeni, farklı bir senaryo üret." }])); s.id = "ai-" + Date.now(); setScenario(s); setView("play"); } catch { setScenario(catalog[Math.floor(Math.random() * catalog.length)]); setView("play"); } setGenBusy(false); }
   if (view === "quiz") return <Quiz user={user} onDone={() => { onFinish(); setView("pick"); }} onBack={() => setView("pick")} />;
+  if (view === "guided") return <GuidedDemo onBack={() => setView("pick")} />;
   if (view === "play" && scenario) return <Roleplay user={user} scenario={scenario} onResult={(fb) => { setFeedback(fb); setView("result"); onFinish(); }} onQuit={() => setView("pick")} />;
   if (view === "result" && feedback) return <Result fb={feedback} scenario={scenario} onAgain={() => setView("pick")} onHome={goHome} />;
   return (
     <div className="space-y-4">
-      <div><h1 className="text-xl font-bold tracking-tight">Senaryo seç</h1><p className="text-sm text-slate-500">Müşteri seç, yapay zekâ üretsin ya da quiz çöz.</p></div>
+      <div><h1 className="text-xl font-bold tracking-tight">Senaryo seç</h1><p className="text-sm text-slate-500">Müşteri seç, yapay zekâ üretsin, rehberli demoyu izle ya da quiz çöz.</p></div>
+      <button onClick={() => setView("guided")} className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-800 px-4 py-4 text-left text-white shadow-md"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15"><Sparkles className="h-6 w-6" /></div><div className="flex-1"><div className="text-[14px] font-bold">Rehberli Demo · 2-3 dk</div><div className="text-[11px] text-indigo-200">Canlı bir görüşmeyi izle; danışmanı seçeneklerle sen yönlendir.</div></div><ArrowRight className="h-5 w-5 text-indigo-200" /></button>
       <div className="grid grid-cols-2 gap-3">
         <button onClick={genAI} disabled={genBusy} className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 px-4 py-3.5 text-left text-white disabled:opacity-60"><Dices className="h-5 w-5 shrink-0" /><div><div className="text-[13px] font-bold">AI senaryo</div><div className="text-[10px] text-indigo-200">benzersiz</div></div>{genBusy && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}</button>
-        <button onClick={() => setView("quiz")} className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 px-4 py-3.5 text-left text-white"><BookOpen className="h-5 w-5 shrink-0" /><div><div className="text-[13px] font-bold">Bilgi Quizi</div><div className="text-[10px] text-emerald-100">+XP</div></div></button>
+        <button onClick={() => setView("quiz")} className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 px-4 py-3.5 text-left text-white"><BookOpen className="h-5 w-5 shrink-0" /><div><div className="text-[13px] font-bold">Bilgi Quizi</div><div className="text-[10px] text-emerald-100">akıllı · +XP</div></div></button>
       </div>
       <div className="grid grid-cols-2 gap-3">{catalog.map((s) => <button key={s.id} onClick={() => { setScenario(s); setView("play"); }} className="flex flex-col items-start rounded-2xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:shadow-md hover:ring-indigo-300"><div className="flex w-full items-center justify-between"><span className="text-2xl">{s.emoji}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${DIFF[s.diff].cls}`}>{DIFF[s.diff].label}</span></div><div className="mt-2 text-[13px] font-bold leading-tight">{s.kpi}</div><div className="mt-0.5 text-[11px] text-slate-400">{s.product}</div><div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-500"><User className="h-3 w-3" /> {s.name}{s.custom && <span className="ml-1 rounded bg-indigo-50 px-1 text-[9px] text-indigo-600">özel</span>}</div></button>)}</div>
     </div>
   );
 }
+
+function GuidedDemo({ onBack }) {
+  const [hist, setHist] = useState([]); // {customer, mood, options, picked, quality, why}
+  const [cur, setCur] = useState(null); // {customer, mood, options}
+  const [mood, setMood] = useState("supheci"); const [busy, setBusy] = useState(true); const [step, setStep] = useState(0);
+  const [picked, setPicked] = useState(null); const [done, setDone] = useState(false); const [verdict, setVerdict] = useState(""); const [err, setErr] = useState("");
+  const apiRef = useRef([]);
+  const sys = `Sen Apple Premium Reseller (Türkiye) için bir satış EĞİTMENİsin. Kullanıcıya rehberli bir vaka oynatıyorsun: müşteri konuşur, sen DANIŞMAN için 3 olası cevap sunarsın (biri "iyi", biri "orta", biri "zayıf"; sırayı karıştır). Kullanıcı birini seçer, müşteri ona göre tepki verir. Gerçekçi ve kısa tut.
+${PRODUCTS}
+SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","mood":"supheci|dusunuyor|tereddut|ilgili|ikna|sinirli","options":[{"text":"danışman cevabı","quality":"iyi|orta|zayıf","why":"tek cümle gerekçe"}],"closed":false,"verdict":""}`;
+  async function step1() {
+    setBusy(true); setErr("");
+    const msgs = [{ role: "user", content: "Vakaya başla. iPhone 17 Pro almayı düşünen ama Cihaz Sigortası'na mesafeli bir müşteri. İlk müşteri cümlesini ve 3 danışman seçeneğini ver." }];
+    try { const r = looseJSON(await callClaude(sys, msgs)); apiRef.current = [...msgs, { role: "assistant", content: JSON.stringify(r) }]; setCur(r); setMood(r.mood || "supheci"); } catch { setErr("Demo başlatılamadı, geri dönüp tekrar dene."); }
+    setBusy(false);
+  }
+  useEffect(() => { step1(); }, []);
+  async function pick(opt) {
+    if (picked !== null || busy) return; setPicked(opt);
+    setHist((h) => [...h, { ...cur, picked: opt.text, quality: opt.quality, why: opt.why }]);
+    const nextStep = step + 1; setStep(nextStep);
+    const closing = nextStep >= 5;
+    const msgs = [...apiRef.current, { role: "user", content: `Danışman şu cevabı seçti: "${opt.text}" (kalite: ${opt.quality}). Müşterinin buna tepkisini ver.${closing ? ' Bu son tur: "closed":true yap ve "verdict" alanında 2-3 cümlelik kısa genel değerlendirme + tek somut tavsiye yaz.' : " Yeni durumu ve 3 yeni danışman seçeneğini ver."}` }];
+    setBusy(true);
+    try {
+      const r = looseJSON(await callClaude(sys, msgs)); apiRef.current = [...msgs, { role: "assistant", content: JSON.stringify(r) }];
+      setTimeout(() => {
+        setMood(r.mood || mood); setPicked(null);
+        if (r.closed || closing) { setVerdict(r.verdict || "Görüşme tamamlandı."); setDone(true); }
+        else setCur(r);
+        setBusy(false);
+      }, 900);
+    } catch { setErr("Yanıt alınamadı, tekrar seç."); setPicked(null); setBusy(false); }
+  }
+  const QCLS = { iyi: "ring-emerald-300 bg-emerald-50", orta: "ring-amber-300 bg-amber-50", zayıf: "ring-rose-300 bg-rose-50" };
+  if (done) return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button>
+      <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200 pop-in"><div className={`mx-auto h-24 w-24 overflow-hidden rounded-2xl ${MOODS[mood]?.bg}`}><CharacterFace mood={mood} /></div><div className="mt-3 text-lg font-bold">Demo tamamlandı</div></div>
+      <Block tone="indigo" icon={<Sparkles className="h-4 w-4" />} title="Eğitmen değerlendirmesi" items={[verdict]} />
+      <button onClick={onBack} className="w-full rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-[15px] font-semibold text-white">Bitir</button>
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button><span className="text-xs font-semibold text-slate-400">Adım {Math.min(step + 1, 5)}/5</span></div>
+      <div className={`relative flex flex-col items-center overflow-hidden rounded-3xl px-4 pb-4 pt-4 ring-1 ring-slate-200 ${MOODS[mood]?.bg}`}>
+        <div className="sk-bob h-32 w-32"><CharacterFace mood={mood} talking={busy} thinking={busy} /></div>
+        <div className={`text-sm font-extrabold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div>
+      </div>
+      {err && <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="h-3.5 w-3.5" /> {err}</div>}
+      {busy && !cur ? <div className="rounded-2xl bg-white p-10 text-center ring-1 ring-slate-200"><Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-300" /><p className="mt-3 text-sm text-slate-500">Görüşme hazırlanıyor…</p></div> : cur && (<>
+        <div className="rounded-2xl bg-slate-100 px-4 py-3 text-[14px] leading-relaxed text-slate-800">💬 {cur.customer}</div>
+        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Danışman ne demeli?</div>
+        <div className="space-y-2">{(cur.options || []).map((o, idx) => { const showQ = picked !== null; const cls = showQ ? (QCLS[o.quality] || "ring-slate-200 bg-slate-50") : "ring-slate-200 bg-white hover:ring-indigo-300"; return (
+          <button key={idx} onClick={() => pick(o)} disabled={picked !== null || busy} className={`w-full rounded-xl px-4 py-3 text-left text-[13px] font-medium ring-1 transition ${cls} disabled:opacity-90`}>
+            <div className="flex items-start gap-2"><MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" /><span className="flex-1">{o.text}</span>{showQ && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${o.quality === "iyi" ? "bg-emerald-200 text-emerald-800" : o.quality === "orta" ? "bg-amber-200 text-amber-800" : "bg-rose-200 text-rose-800"}`}>{o.quality}</span>}</div>
+            {showQ && picked === o && <div className="mt-1.5 pl-6 text-[12px] text-slate-600">{o.why}</div>}
+          </button>); })}</div>
+        {busy && picked !== null && <div className="flex items-center justify-center gap-2 text-xs text-slate-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> müşteri tepki veriyor…</div>}
+      </>)}
+    </div>
+  );
+}
+
 
 function buildCustomerSystem(s) {
   return `Sen bir Apple Premium Reseller mağazasında (Türkiye) alışveriş yapan GERÇEKÇİ bir müşterisin.
@@ -473,7 +598,9 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
     const reps = turns.filter((t) => t.who === "r").length; if (scoring || reps < 1) return;
     try { synth && synth.cancel(); } catch {} stopListen(); setScoring(true); setErr("");
     const tr = turns.map((t) => (t.who === "r" ? "Temsilci: " : "Müşteri: ") + t.text).join("\n");
-    const sys = `Gürgençler (Apple Premium Reseller) satış koçusun. KPI: ${scenario.kpi}. Transkripti İhtiyaç Keşfi, Teklif Zamanlaması, Değer İletişimi, İtiraz Yönetimi, Kapanış başlıklarında 0-100 puanla. Yapıcı Türk koç tonu. SADECE JSON: {"score":0-100,"stars":0-5,"headline":"...","kpis":[{"name":"İhtiyaç Keşfi","score":0},{"name":"Teklif Zamanlaması","score":0},{"name":"Değer İletişimi","score":0},{"name":"İtiraz Yönetimi","score":0},{"name":"Kapanış","score":0}],"strengths":["..."],"improvements":["..."],"suggestions":["..."]}`;
+    const sys = `Gürgençler (Apple Premium Reseller) için SERT ama yapıcı bir satış koçusun. KPI: ${scenario.kpi}. Transkripti İhtiyaç Keşfi, Teklif Zamanlaması, Değer İletişimi, İtiraz Yönetimi, Kapanış başlıklarında 0-100 puanla.
+PUANLAMA ÇOK SIKI: Ortalama temsilci 45-65 alır. 80+ yalnızca güçlü, eksiksiz keşif + net kapanış varsa verilir; 90+ neredeyse kusursuz performansa. Zayıf keşif, erken teklif, baskıcı/robotik dil, kapanışı denememek puanı sert düşürür. Satış kapanmadıysa (müşteri almadıysa) genel skor 60'ı GEÇMESİN. Asla cömert olma; hak edilmeyen yüksek puan verme.
+SADECE JSON: {"score":0-100,"stars":0-5,"headline":"...","kpis":[{"name":"İhtiyaç Keşfi","score":0},{"name":"Teklif Zamanlaması","score":0},{"name":"Değer İletişimi","score":0},{"name":"İtiraz Yönetimi","score":0},{"name":"Kapanış","score":0}],"strengths":["..."],"improvements":["..."],"suggestions":["..."]}`;
     try {
       const fb = looseJSON(await callClaude(sys, [{ role: "user", content: "TRANSKRİPT:\n\n" + tr }]));
       const outcome = ended || "lost";
@@ -482,7 +609,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
       if (rec.lastPlayedDate === today) {} else if (rec.lastPlayedDate === yesterdayStr()) rec.streak = (rec.streak || 0) + 1; else rec.streak = 1;
       rec.lastPlayedDate = today;
       let bonus = 0; if (scenario.daily && rec.dailyDone !== today) { bonus = 30; rec.dailyDone = today; }
-      rec.bestScore = Math.max(rec.bestScore || 0, fb.score); rec.sessions = (rec.sessions || 0) + 1; rec.totalXp = (rec.totalXp || 0) + fb.score + bonus;
+      rec.bestScore = Math.max(rec.bestScore || 0, fb.score); rec.sessions = (rec.sessions || 0) + 1; rec.totalXp = (rec.totalXp || 0) + Math.round(fb.score * 0.5) + bonus;
       rec.perKpi = rec.perKpi || {}; const pk = rec.perKpi[scenario.kpi] || { best: 0, sessions: 0 }; rec.perKpi[scenario.kpi] = { best: Math.max(pk.best, fb.score), sessions: pk.sessions + 1 };
       rec.outcomes = rec.outcomes || { won: 0, lost: 0 }; rec.outcomes[outcome] = (rec.outcomes[outcome] || 0) + 1;
       rec.recent = [...(rec.recent || []), { score: fb.score, kpi: scenario.kpi, ts: Date.now() }].slice(-12);
@@ -542,7 +669,7 @@ function Result({ fb, scenario, onAgain, onHome }) {
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 pop-in">
-        <div className="flex items-center gap-5 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-indigo-50 px-5 py-5"><div className="relative h-[88px] w-[88px] shrink-0"><svg className="h-full w-full -rotate-90" viewBox="0 0 80 80"><circle cx="40" cy="40" r={r} fill="none" stroke="#e2e8f0" strokeWidth="7" /><circle cx="40" cy="40" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .9s ease" }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-bold tracking-tight">{pct}</span><span className="text-[10px] text-slate-400">/100</span></div></div><div><div className="flex gap-0.5">{[0, 1, 2, 3, 4].map((i) => { const fl = i < full ? 1 : i === full && half ? 0.5 : 0; return <span key={i} className="relative text-base"><span className="text-slate-200">★</span><span className="absolute inset-0 overflow-hidden text-amber-400" style={{ width: `${fl * 100}%` }}>★</span></span>; })}</div><div className="mt-1.5 text-lg font-bold leading-tight tracking-tight">{f.headline}</div><div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold"><span className="flex items-center gap-1 text-amber-600"><Zap className="h-3 w-3" /> +{pct} XP</span>{fb.outcome === "won" ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700">Kazanıldı</span> : <span className="rounded bg-rose-100 px-1.5 py-0.5 text-rose-600">Kaybedildi</span>}</div></div></div>
+        <div className="flex items-center gap-5 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-indigo-50 px-5 py-5"><div className="relative h-[88px] w-[88px] shrink-0"><svg className="h-full w-full -rotate-90" viewBox="0 0 80 80"><circle cx="40" cy="40" r={r} fill="none" stroke="#e2e8f0" strokeWidth="7" /><circle cx="40" cy="40" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .9s ease" }} /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-bold tracking-tight">{pct}</span><span className="text-[10px] text-slate-400">/100</span></div></div><div><div className="flex gap-0.5">{[0, 1, 2, 3, 4].map((i) => { const fl = i < full ? 1 : i === full && half ? 0.5 : 0; return <span key={i} className="relative text-base"><span className="text-slate-200">★</span><span className="absolute inset-0 overflow-hidden text-amber-400" style={{ width: `${fl * 100}%` }}>★</span></span>; })}</div><div className="mt-1.5 text-lg font-bold leading-tight tracking-tight">{f.headline}</div><div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold"><span className="flex items-center gap-1 text-amber-600"><Zap className="h-3 w-3" /> +{Math.round(pct * 0.5)} XP</span>{fb.outcome === "won" ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700">Kazanıldı</span> : <span className="rounded bg-rose-100 px-1.5 py-0.5 text-rose-600">Kaybedildi</span>}</div></div></div>
         <div className="space-y-2.5 px-5 py-4">{f.kpis.map((k, i) => <div key={i}><div className="mb-1 flex justify-between text-[13px]"><span className="font-medium text-slate-600">{k.name}</span><span className="font-bold">{k.score}</span></div><div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700" style={{ width: `${Math.max(2, Math.min(100, k.score))}%` }} /></div></div>)}</div>
       </div>
       <Block tone="emerald" icon={<TrendingUp className="h-4 w-4" />} title="Güçlü Yönlerin" items={f.strengths} />
@@ -558,16 +685,24 @@ function Block({ tone, icon, title, items }) {
   return <div className={`rounded-2xl ${t.bg} px-5 py-4 ring-1 ${t.ring}`}><div className={`mb-2.5 flex items-center gap-1.5 text-sm font-bold ${t.text}`}>{icon} {title}</div><ul className="space-y-2">{items.map((it, i) => <li key={i} className="flex gap-2.5 text-[14px] leading-relaxed text-slate-700"><span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${t.dot}`} /><span>{it}</span></li>)}</ul></div>;
 }
 
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function Quiz({ user, onDone, onBack }) {
-  const [i, setI] = useState(0), [picked, setPicked] = useState(null), [score, setScore] = useState(0), [done, setDone] = useState(false);
-  const q = QUIZ[i];
+  const [qs, setQs] = useState(null); const [i, setI] = useState(0), [picked, setPicked] = useState(null), [score, setScore] = useState(0), [done, setDone] = useState(false);
+  useEffect(() => { (async () => {
+    let weak = "genel satış"; try { const rec = await sget(skey(user.username)); const pk = Object.entries(rec?.perKpi || {}); if (pk.length) weak = pk.sort((a, b) => (a[1].best || 0) - (b[1].best || 0))[0][0]; } catch {}
+    const sys = `Apple Premium Reseller (Türkiye) satış bilgisi için 5 adet ZORLAYICI, birbirinden farklı çoktan seçmeli soru üret. Ağırlık ver: ${weak}. Her soru 3 şıklı, tek doğru cevap. Şıklar kısa olsun. SADECE JSON: {"questions":[{"q":"...","a":["..","..",".."],"c":0}]}`;
+    try { const r = looseJSON(await callClaude(sys, [{ role: "user", content: "Yeni, daha önce sorulmamış sorular üret." }])); const arr = (r.questions || []).filter((x) => x.a && x.a.length === 3 && typeof x.c === "number"); setQs(arr.length >= 3 ? arr.slice(0, 5) : shuffle(QUIZ).slice(0, 5)); }
+    catch { setQs(shuffle(QUIZ).slice(0, 5)); }
+  })(); }, []);
+  if (!qs) return <div className="space-y-4"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button><div className="rounded-2xl bg-white p-10 text-center ring-1 ring-slate-200"><Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-300" /><p className="mt-3 text-sm text-slate-500">Sana özel sorular hazırlanıyor…</p></div></div>;
+  const q = qs[i];
   function choose(idx) {
     if (picked !== null) return; setPicked(idx); const correct = idx === q.c; if (correct) setScore((s) => s + 1);
-    setTimeout(async () => { if (i + 1 < QUIZ.length) { setI(i + 1); setPicked(null); } else { setDone(true); const rec = await sget(skey(user.username)); if (rec) { rec.totalXp = (rec.totalXp || 0) + (score + (correct ? 1 : 0)) * 10; await sset(skey(user.username), rec); } } }, 700);
+    setTimeout(async () => { if (i + 1 < qs.length) { setI(i + 1); setPicked(null); } else { setDone(true); const rec = await sget(skey(user.username)); if (rec) { rec.totalXp = (rec.totalXp || 0) + (score + (correct ? 1 : 0)) * 8; await sset(skey(user.username), rec); } } }, 700);
   }
-  if (done) return <div className="space-y-4"><div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200 pop-in"><div className="text-4xl font-bold tracking-tight">{score}/{QUIZ.length}</div><div className="mt-1 text-sm text-slate-500">doğru · +{score * 10} XP</div></div><button onClick={onDone} className="w-full rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-[15px] font-semibold text-white">Bitir</button></div>;
+  if (done) return <div className="space-y-4"><div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200 pop-in"><div className="text-4xl font-bold tracking-tight">{score}/{qs.length}</div><div className="mt-1 text-sm text-slate-500">doğru · +{score * 8} XP</div></div><button onClick={onDone} className="w-full rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-[15px] font-semibold text-white">Bitir</button></div>;
   return (
-    <div className="space-y-4"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button><div className="flex items-center justify-between text-xs font-semibold text-slate-400"><span>Soru {i + 1}/{QUIZ.length}</span><span>{score} doğru</span></div><div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200"><div className="text-base font-bold leading-snug">{q.q}</div><div className="mt-4 space-y-2">{q.a.map((opt, idx) => { let cls = "bg-slate-50 ring-slate-200"; if (picked !== null) { if (idx === q.c) cls = "bg-emerald-50 ring-emerald-300"; else if (idx === picked) cls = "bg-rose-50 ring-rose-300"; } return <button key={idx} onClick={() => choose(idx)} className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium ring-1 ${cls}`}>{opt}{picked !== null && idx === q.c && <Check className="h-4 w-4 text-emerald-600" />}</button>; })}</div></div></div>
+    <div className="space-y-4"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button><div className="flex items-center justify-between text-xs font-semibold text-slate-400"><span>Soru {i + 1}/{qs.length}</span><span>{score} doğru</span></div><div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200"><div className="text-base font-bold leading-snug">{q.q}</div><div className="mt-4 space-y-2">{q.a.map((opt, idx) => { let cls = "bg-slate-50 ring-slate-200"; if (picked !== null) { if (idx === q.c) cls = "bg-emerald-50 ring-emerald-300"; else if (idx === picked) cls = "bg-rose-50 ring-rose-300"; } return <button key={idx} onClick={() => choose(idx)} className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium ring-1 ${cls}`}>{opt}{picked !== null && idx === q.c && <Check className="h-4 w-4 text-emerald-600" />}</button>; })}</div></div></div>
   );
 }
 
@@ -692,9 +827,36 @@ function RepDashboard({ r }) {
   );
 }
 
+function CoachTab() {
+  const [obj, setObj] = useState(""); const [busy, setBusy] = useState(false); const [res, setRes] = useState(null); const [err, setErr] = useState("");
+  async function ask(text) {
+    const t = (text || obj).trim(); if (!t || busy) return;
+    setObj(t); setBusy(true); setErr(""); setRes(null);
+    const sys = `Sen Gürgençler (Apple Premium Reseller, Türkiye) için kıdemli bir satış koçusun. Personel sana bir müşteri itirazı yazacak; kısa, uygulanabilir, Türkçe yanıt ver.
+${PRODUCTS}
+SADECE JSON: {"taktikler":["3-4 kısa uygulanabilir ikna taktiği"],"capraz":["bu duruma uygun 1-3 çapraz/üst satış kombinasyonu, güncel ürünlerden"],"ornek":"temsilcinin kullanabileceği tek doğal örnek cümle"}`;
+    try { const r = looseJSON(await callClaude(sys, [{ role: "user", content: "Müşteri itirazı: " + t }])); setRes(r); }
+    catch { setErr("Öneri alınamadı, tekrar dene."); }
+    setBusy(false);
+  }
+  return (
+    <div className="space-y-4">
+      <div><h1 className="text-xl font-bold tracking-tight">Hızlı İtiraz Koçu</h1><p className="text-sm text-slate-500">Müşteri itirazını yaz, anında ikna taktiği + çapraz satış önerisi al. (Prova değil, anlık yardım.)</p></div>
+      <div className="flex flex-wrap gap-2">{OBJECTIONS.map((o) => <button key={o} onClick={() => ask(o)} disabled={busy} className="rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 disabled:opacity-50">{o}</button>)}</div>
+      <div className="rounded-2xl bg-white p-2 ring-1 ring-slate-200"><textarea value={obj} onChange={(e) => setObj(e.target.value)} rows={2} placeholder="Örn: 'Pro Max çok pahalı, normalini alayım' diyor…" className="w-full resize-none bg-transparent px-2 py-2 text-[14px] outline-none placeholder:text-slate-400" /><button onClick={() => ask()} disabled={busy || !obj.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 py-3 text-sm font-semibold text-white disabled:opacity-40">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Tavsiye al</button></div>
+      {err && <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="h-3.5 w-3.5" /> {err}</div>}
+      {res && <div className="space-y-3 pop-in">
+        <Block tone="indigo" icon={<Lightbulb className="h-4 w-4" />} title="İkna Taktikleri" items={res.taktikler || []} />
+        <Block tone="emerald" icon={<TrendingUp className="h-4 w-4" />} title="Çapraz / Üst Satış" items={res.capraz || []} />
+        {res.ornek && <div className="rounded-2xl bg-slate-900 px-4 py-4 text-white"><div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-indigo-300"><MessageCircle className="h-3.5 w-3.5" /> Örnek cümle</div><p className="text-[14px] leading-relaxed">{res.ornek}</p></div>}
+      </div>}
+    </div>
+  );
+}
+
 function BottomNav({ tab, setTab, manager }) {
-  const items = [{ id: "home", icon: HomeIcon, label: "Ana" }, { id: "play", icon: Swords, label: "Prova" }, { id: "board", icon: Trophy, label: "Lider" }];
+  const items = [{ id: "home", icon: HomeIcon, label: "Ana" }, { id: "play", icon: Swords, label: "Prova" }, { id: "coach", icon: Lightbulb, label: "Koç" }, { id: "board", icon: Trophy, label: "Lider" }];
   if (manager) items.push({ id: "mgr", icon: Users, label: "Yönetici" });
   items.push({ id: "profile", icon: User, label: "Profil" });
-  return <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-md items-center justify-around px-1 py-2">{items.map((it) => { const Icon = it.icon, active = tab === it.id; return <button key={it.id} onClick={() => setTab(it.id)} className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 ${active ? "text-indigo-600" : "text-slate-400"}`}><Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} /><span className="text-[10px] font-semibold">{it.label}</span></button>; })}</div></div>;
+  return <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur"><div className="mx-auto flex max-w-md items-center justify-around px-1 py-2">{items.map((it) => { const Icon = it.icon, active = tab === it.id; return <button key={it.id} onClick={() => setTab(it.id)} className={`flex flex-1 flex-col items-center gap-0.5 py-1 ${active ? "text-indigo-600" : "text-slate-400"}`}><span className={`flex h-7 w-11 items-center justify-center rounded-full transition ${active ? "bg-indigo-50" : ""}`}><Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} /></span><span className="text-[10px] font-semibold">{it.label}</span></button>; })}</div></div>;
 }
