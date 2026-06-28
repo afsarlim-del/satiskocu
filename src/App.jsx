@@ -138,9 +138,22 @@ SADECE JSON: {"name":"isim","gender":"e|k","product":"ürün","kpi":"Sigorta Att
 const ARCHETYPES = ["fiyat odaklı sıkı pazarlıkçı", "teknolojiden anlamayan, ilk kez akıllı telefon alan", "rakip markaya (Android/Samsung) sadık, ikna olmaya kapalı", "bütçesi kısıtlı üniversite öğrencisi", "premium ve en yenisini isteyen üst gelirli", "çok kararsız, sürekli erteleyen", "internetten her şeyi araştırmış, fiyatları ezbere bilen bilinçli müşteri", "sevdiğine hediye almaya gelmiş, ürünü tanımayan", "garanti ve servis konusunda aşırı kaygılı", "yeniliğe meraklı, erken benimseyen teknoloji tutkunu", "yaşlı, sabırlı ve detaylı açıklama bekleyen", "küçük işletmesi için toplu/kurumsal alım soran", "acelesi olan, kısa ve net konuşan", "indirim/kampanya peşinde fırsatçı"];
 const CONTEXTS = ["yoğun cumartesi kalabalığı", "sabahın sakin ilk saati", "büyük kampanya haftası", "yeni iPhone çıkış günü telaşı", "okula dönüş sezonu", "yılbaşı hediye yoğunluğu", "ay sonu bütçe kısıtlı dönem", "Black Friday günü"];
 const OBJ_SEEDS = ["fiyat beklediğinden çok yüksek", "rakip mağazada/online daha ucuz gördü", "şimdi almak istemiyor, düşünecek", "eski cihazı hâlâ gayet iyi çalışıyor", "bu kadar özelliğe ihtiyacı olmadığını düşünüyor", "garanti/servis kapsamını yetersiz buluyor", "taksit/finansman koşullarını beğenmiyor", "istediği renk/model stokta yok sanıyor", "markaya güvenmiyor, kalıcılığından şüpheli", "eşine/patronuna danışması gerek"];
+const NAMES_M = ["Ahmet", "Mehmet", "Mustafa", "Emre", "Burak", "Kerem", "Onur", "Serkan", "Tolga", "Cem", "Barış", "Volkan", "Kaan", "Murat", "Hakan", "Okan", "Yusuf", "Eren", "Berk", "Sinan", "Gökhan", "Tarık", "Ozan", "Levent", "Caner", "Uğur", "Furkan", "Doğukan", "Selim", "Arda", "Mert", "Halil", "İbrahim", "Oğuz"];
+const NAMES_F = ["Ayşe", "Elif", "Zeynep", "Selin", "Aslı", "Burcu", "Eda", "Merve", "Buse", "Ece", "Gizem", "Cansu", "Derya", "Esra", "Büşra", "Fatma", "Melek", "İrem", "Defne", "Sıla", "Yağmur", "Pınar", "Nazlı", "Tuğçe", "Aylin", "Sevgi", "Hande", "Bahar", "Çağla", "Dilara", "Gamze", "Sena", "Ebru", "Naz"];
+let _recentNames = [];
+function pickName() {
+  const isF = Math.random() < 0.5; const pool = isF ? NAMES_F : NAMES_M;
+  let n, tries = 0; do { n = pool[Math.floor(Math.random() * pool.length)]; tries++; } while (_recentNames.includes(n) && tries < 15);
+  _recentNames = [..._recentNames, n].slice(-14);
+  return { name: n, gender: isF ? "k" : "e" };
+}
 function scenarioSeed() {
   const r = (a) => a[Math.floor(Math.random() * a.length)];
-  return `Bu sefer şu eksende, öncekilerden TAMAMEN farklı bir müşteri kurgula. Müşteri tipi: ${r(ARCHETYPES)}. Mağaza bağlamı: ${r(CONTEXTS)}. Baskın itiraz: ${r(OBJ_SEEDS)}. Bu profile uygun bir KPI ve zorluk seç; açılış cümlesi bu kişiliğe özgü, doğal ve klişe olmayan olsun.`;
+  const who = pickName(); const age = 19 + Math.floor(Math.random() * 47);
+  return {
+    name: who.name, gender: who.gender,
+    text: `Bu sefer ŞU kişiyi canlandır; öncekilerden TAMAMEN farklı olsun. Ad: ${who.name} (${who.gender === "k" ? "kadın" : "erkek"}), yaş ${age}. Müşteri tipi: ${r(ARCHETYPES)}. Mağaza bağlamı: ${r(CONTEXTS)}. Baskın itiraz: ${r(OBJ_SEEDS)}. Persona'yı bu ad ve yaş üzerinden yaz; KPI ve zorluğu bu profile göre seç. Açılış cümlesi bu kişiliğe özgü, doğal ve klişe olmayan ("merhaba bakıyordum" YASAK) olsun.`,
+  };
 }
 
 const QUIZ = [
@@ -509,7 +522,7 @@ function ProfileTab({ me, user, myRank, manager, onBecomeManager, onUpdate }) {
 function PracticeTab({ user, catalog, onFinish, goHome }) {
   const [view, setView] = useState("pick"); const [scenario, setScenario] = useState(null); const [genBusy, setGenBusy] = useState(false); const [feedback, setFeedback] = useState(null);
   useEffect(() => { if (window.__launch) { setScenario(window.__launch); setView("play"); window.__launch = null; } }, []);
-  async function genAI() { setGenBusy(true); try { const s = looseJSON(await callClaude(SCENARIO_SYSTEM, [{ role: "user", content: scenarioSeed() }])); s.id = "ai-" + Date.now(); setScenario(s); setView("play"); } catch { setScenario(catalog[Math.floor(Math.random() * catalog.length)]); setView("play"); } setGenBusy(false); }
+  async function genAI() { setGenBusy(true); try { const seed = scenarioSeed(); const s = looseJSON(await callClaude(SCENARIO_SYSTEM, [{ role: "user", content: seed.text }], { temperature: 1.05 })); s.id = "ai-" + Date.now(); s.name = seed.name; s.gender = seed.gender; setScenario(s); setView("play"); } catch { setScenario(catalog[Math.floor(Math.random() * catalog.length)]); setView("play"); } setGenBusy(false); }
   if (view === "quiz") return <Quiz user={user} onDone={() => { onFinish(); setView("pick"); }} onBack={() => setView("pick")} />;
   if (view === "guided") return <GuidedDemo user={user} onBack={() => { onFinish(); setView("pick"); }} />;
   if (view === "play" && scenario) return <Roleplay user={user} scenario={scenario} onResult={(fb) => { setFeedback(fb); setView("result"); onFinish(); }} onQuit={() => setView("pick")} />;
@@ -595,8 +608,9 @@ ${PRODUCTS}
 SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","name":"müşteri adı","gender":"e|k","mood":"supheci|dusunuyor|tereddut|ilgili|ikna|sinirli","options":[{"text":"danışman cevabı","quality":"iyi|orta|zayıf","why":"tek cümle gerekçe"}],"closed":false,"verdict":""}`;
   async function step1() {
     setBusy(true); setErr("");
-    const msgs = [{ role: "user", content: `Vakaya başla. ${scenarioSeed()} İlk müşteri cümlesini, adını, cinsiyetini ve 3 danışman seçeneğini ver.` }];
-    try { const r = looseJSON(await callClaude(sys, msgs)); apiRef.current = [...msgs, { role: "assistant", content: JSON.stringify(r) }]; setCur(r); setMood(r.mood || "supheci"); } catch { setErr("Demo başlatılamadı, geri dönüp tekrar dene."); }
+    const seed = scenarioSeed();
+    const msgs = [{ role: "user", content: `Vakaya başla. ${seed.text} İlk müşteri cümlesini, adını, cinsiyetini ve 3 danışman seçeneğini ver.` }];
+    try { const r = looseJSON(await callClaude(sys, msgs, { temperature: 1.0 })); apiRef.current = [...msgs, { role: "assistant", content: JSON.stringify(r) }]; setCur(r); setMood(r.mood || "supheci"); } catch { setErr("Demo başlatılamadı, geri dönüp tekrar dene."); }
     setBusy(false);
   }
   useEffect(() => { step1(); }, []);
