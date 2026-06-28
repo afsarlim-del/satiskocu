@@ -13,7 +13,7 @@ async function post(path, body) {
 }
 
 export async function callClaude(system, messages) {
-  const r = await post("/.netlify/functions/claude", { system, messages });
+  const r = await post("/api/claude", { system, messages });
   if (r.error) throw new Error(r.error);
   return r.text || "";
 }
@@ -22,17 +22,17 @@ export async function sget(key, shared = true) {
   if (!shared) {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
   }
-  try { const r = await post("/.netlify/functions/storage", { op: "get", key }); return r.value ?? null; } catch { return null; }
+  try { const r = await post("/api/storage", { op: "get", key }); return r.value ?? null; } catch { return null; }
 }
 
 export async function sset(key, value, shared = true) {
   if (!shared) {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
   }
-  try { await post("/.netlify/functions/storage", { op: "set", key, value }); return true; } catch { return false; }
+  try { await post("/api/storage", { op: "set", key, value }); return true; } catch { return false; }
 }
 
 export async function slist(prefix, shared = true) {
   if (!shared) return [];
-  try { const r = await post("/.netlify/functions/storage", { op: "list", prefix }); return r.keys || []; } catch { return []; }
+  try { const r = await post("/api/storage", { op: "list", prefix }); return r.keys || []; } catch { return []; }
 }

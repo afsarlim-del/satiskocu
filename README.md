@@ -1,73 +1,61 @@
-# Satış Koçu — Netlify + Gemini (Ücretsiz)
+# Satış Koçu — Cloudflare Pages + Gemini/Groq
 
-Anahtarı **sunucuda gizleyen**, liderlik tablosu **global** olan tam çalışan sürüm.
-Yapay zekâ tarafı **Google Gemini'nin ücretsiz katmanı** ile çalışır.
-Tarayıcı → Netlify Function → Gemini. Anahtar tarayıcıya HİÇ inmez.
+React (Vite) uygulaması + Cloudflare Pages Functions (anahtar gizli) + Cloudflare KV (global liderlik).
+Tarayıcı → Pages Function → Gemini/Groq. Anahtar tarayıcıya HİÇ inmez.
 
-> Maliyet: Netlify barındırma ücretsiz + Gemini ücretsiz katman = pratikte **bedava**
-> (yalnızca ücretsiz katmanın günlük/dakikalık istek limitleri geçerli).
+## Yapı
+- src/                          → uygulama (React)
+- functions/api/claude.js       → AI proxy (Gemini, hata olursa Groq)
+- functions/api/storage.js      → global depo (Cloudflare KV: SATISKOCU_KV)
+- wrangler.toml                 → build çıktısı = dist
+- package.json, vite.config.js, index.html
 
----
+## Kurulum (GitHub + Cloudflare Pages)
 
-## Ne var?
-- `src/App.jsx` — uygulama (prova, skorlama, liderlik, yönetici paneli, Excel, ses)
-- `src/api.js` — çağrıları Netlify Function'lara yönlendirir
-- `netlify/functions/claude.js` — **Gemini** proxy (anahtar burada, gizli)
-- `netlify/functions/storage.js` — global depo (Netlify Blobs)
-- `netlify.toml`, `package.json`, `vite.config.js`, `index.html`
+### 1) Ücretsiz API anahtarları
+- Gemini: aistudio.google.com/apikey → Create API key (kart gerekmez)
+- (yedek) Groq: console.groq.com → API Keys → Create
 
----
+### 2) Kodu GitHub'a koy
+Bu klasörü bir GitHub deposuna yükle (mevcut repo da olur).
 
-## Kurulum
+### 3) Cloudflare KV namespace oluştur (liderlik deposu)
+- dash.cloudflare.com → soldan **Storage & Databases → KV** (ya da Workers & Pages > KV)
+- **Create a namespace** → adı: `satiskocu` → oluştur.
+- (Bu namespace'i birazdan projeye "SATISKOCU_KV" adıyla bağlayacağız.)
 
-### 1) Ücretsiz Gemini anahtarı al
-- **aistudio.google.com/apikey** adresine gir (Google hesabınla).
-- **Create API key** de, anahtarı kopyala. (Kredi kartı gerekmez.)
+### 4) Cloudflare Pages projesi oluştur
+- dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git**
+- GitHub'ı yetkilendir, repoyu seç.
+- Build ayarları:
+  - Framework preset: **Vite** (yoksa "None")
+  - Build command: `npm run build`
+  - Build output directory: `dist`
+- **Save and Deploy** de (ilk deploy anahtarsız olduğu için AI henüz çalışmayabilir; devam et).
 
-### 2) Bu klasörü bir GitHub deposuna koy
-- github.com'da yeni boş repo aç.
-- `satiskocu` klasörünü yükle (web'den "upload files" ya da git push).
+### 5) Ortam değişkenlerini ekle
+Pages projesi → **Settings → Variables and Secrets → Environment variables** (Production):
+- `GEMINI_API_KEY` = (Gemini anahtarın)
+- `GEMINI_MODEL` = `gemini-2.5-flash`
+- `GROQ_API_KEY` = (Groq anahtarın) — opsiyonel ama önerilir
+- `GROQ_MODEL` = `llama-3.3-70b-versatile`
 
-### 3) Netlify'a bağla
-- app.netlify.com → **Add new site → Import an existing project** → GitHub → repoyu seç.
-- Build ayarları otomatik gelir (netlify.toml): Build = npm run build, Publish = dist.
-- **Deploy site** de.
+### 6) KV namespace'i projeye bağla (ÖNEMLİ)
+Pages projesi → **Settings → Functions → KV namespace bindings → Add binding**:
+- Variable name: `SATISKOCU_KV`
+- KV namespace: 3. adımda oluşturduğun `satiskocu`
+- Kaydet.
 
-### 4) Anahtarı ortam değişkenine ekle (ÖNEMLİ)
-- Site settings → **Environment variables** → Add a variable:
-  - Key: GEMINI_API_KEY
-  - Value: (kopyaladığın anahtar)
-- (opsiyonel) GEMINI_MODEL = gemini-2.0-flash
-- Sonra **Deploys → Trigger deploy → Deploy site** ile yeniden yayınla.
+### 7) Yeniden deploy et
+Pages projesi → **Deployments → en üstteki deploy → Retry deployment** (ya da GitHub'a küçük bir commit at).
+Değişkenler ve KV ancak yeniden deploy'da devreye girer.
 
-### 5) Bitti
-- Netlify sana bir adres verir (ör. https://satiskocu.netlify.app).
-- Telefonda aç → kayıt ol → prova yap. "Ana Ekrana Ekle" dersen uygulama gibi açılır.
-
-> Netlify Blobs (liderlik tablosu) ekstra kurulum istemez, deploy edilince otomatik aktif olur.
-
----
-
-## Alternatif: Netlify CLI ile
-    npm install -g netlify-cli
-    cd satiskocu
-    npm install
-    netlify init
-    netlify env:set GEMINI_API_KEY "senin-anahtarin"
-    netlify deploy --build --prod
-
-## Lokal test (isteğe bağlı)
-    npm install
-    netlify dev     # functions dahil lokal calisir (CLI gerekir)
-
-`npm run dev` tek başına Function'ları çalıştırmaz; lokalde `netlify dev` kullan.
-
----
+### 8) Bitti
+Cloudflare sana `https://satiskocu.pages.dev` gibi bir adres verir. Telefonda aç, "Ana Ekrana Ekle" yap.
 
 ## Notlar
-- **Ücretsiz katman limitleri:** Gemini'nin dakika/gün başına istek sınırı var; küçük ekip provası için genelde yeter. Sınıra takılırsan biraz bekleyip tekrar dene.
-- **Güvenlik:** Anahtar yalnızca Netlify ortam değişkeninde durur, kullanıcıya gitmez. Adresi paylaşabilirsin.
-- **Yönetici paneli:** Profil → "Yönetici girişi" → kod **2024**.
-- **Ses:** En iyi Chrome/Android. Çalışmazsa müşteri baloncuğundaki 🔊 ile dene.
-- **Model:** Daha kaliteli yanıt için GEMINI_MODEL = gemini-2.5-flash deneyebilirsin (ücretsiz katmanda mevcutsa).
-- **Tailwind:** Hız için CDN ile geliyor (index.html). Sonra PostCSS'li kuruluma geçebilirsin.
+- **Veri taşınmaz:** Netlify'daki eski liderlik verisi gelmez; Cloudflare'de sıfırdan başlar.
+- **KV tutarlılığı:** Cloudflare KV yazımları küresel olarak birkaç saniyede yayılır; liderlik çok küçük gecikmeyle güncellenebilir (uygulama 20 sn'de bir zaten yeniliyor).
+- **Yönetici paneli:** Profil → "Yönetici girişi" → kod 2024.
+- **Ücretsiz katman:** Gemini/Groq limitlerine takılırsan kısa bekleyip tekrar dene; ikisi birlikte çoğu durumu karşılar.
+- **Lokal test:** `npm install` sonra `npx wrangler pages dev -- npm run dev` (Functions + KV ile). Saf `npm run dev` Functions'ı çalıştırmaz.
