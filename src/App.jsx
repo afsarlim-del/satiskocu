@@ -5,7 +5,7 @@ import {
   Swords, User, ChevronRight, Zap, Crown, Dices, Mic, Volume2, VolumeX,
   Flame, Lightbulb, Users, BarChart3, BookOpen, Plus, ShieldAlert, CalendarDays, X, Check,
   Upload, Download, Activity, Wand2,
-  Moon, Sun, ListChecks, ShoppingBag,
+  Moon, Sun, ListChecks, ShoppingBag, Map,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { callClaude, sget, sset, slist, fetchTTS } from "./api.js";
@@ -226,6 +226,51 @@ const BADGES = [
   { id: "versatile", emoji: "🧭", label: "Çok Yönlü", cond: (r) => Object.keys(r.perKpi || {}).length >= 3 },
 ];
 
+/* ====================== öğrenme yolu (Duolingo tarzı) ====================== */
+const CURRICULUM = [
+  { unit: 1, title: "Temeller", color: "from-emerald-500 to-teal-600", nodes: [
+    { id: "u1-e1", type: "egitim", title: "Karşılama & İlk İzlenim", emoji: "👋", topic: "Apple Premium Reseller mağazasında müşteriyi doğru karşılama, güven kurma ve ilk izlenimin önemi" },
+    { id: "u1-e2", type: "egitim", title: "İhtiyaç Keşfi", emoji: "🔍", topic: "Açık uçlu sorularla müşteri ihtiyacını keşfetme teknikleri; doğru soru tipleri" },
+    { id: "u1-p1", type: "prova", title: "Vitrin Müşterisi", emoji: "🚶", ref: "cr" },
+    { id: "u1-q1", type: "quiz", title: "Bilgi Kontrolü", emoji: "✅" },
+  ] },
+  { unit: 2, title: "iPhone & AppleCare", color: "from-indigo-500 to-violet-600", nodes: [
+    { id: "u2-e1", type: "egitim", title: "iPhone 17 Ailesi", emoji: "📱", topic: "iPhone 17, 17 Pro ve Pro Max arasındaki farklar; kamera, ekran, çip ve hangi müşteriye hangisi" },
+    { id: "u2-e2", type: "egitim", title: "AppleCare Değeri", emoji: "🛡️", topic: "Cihaz Sigortası / AppleCare'in değerini fiyat değil fayda üzerinden anlatma; kaza/ekran kırılması senaryoları" },
+    { id: "u2-p1", type: "prova", title: "Sigorta Attach", emoji: "🛡️", ref: "sigorta" },
+    { id: "u2-c1", type: "checkpoint", title: "Ünite Sınavı", emoji: "⭐", ref: "rakip" },
+  ] },
+  { unit: 3, title: "Aksesuar & Çapraz Satış", color: "from-fuchsia-500 to-pink-600", nodes: [
+    { id: "u3-e1", type: "egitim", title: "Attach Mantığı", emoji: "🧩", topic: "Aksesuar çapraz satışında ihtiyaç-fayda eşleştirme; kılıf, ekran koruyucu, şarj çözümleri ne zaman önerilir" },
+    { id: "u3-p1", type: "prova", title: "Aksesuar Provası", emoji: "🎧", ref: "aksesuar" },
+    { id: "u3-p2", type: "prova", title: "AirPods Çapraz Satış", emoji: "🎧", ref: "airpods" },
+    { id: "u3-q1", type: "quiz", title: "Bilgi Kontrolü", emoji: "✅" },
+  ] },
+  { unit: 4, title: "Trade-In & Finansman", color: "from-amber-500 to-orange-600", nodes: [
+    { id: "u4-e1", type: "egitim", title: "Trade-In Anlatımı", emoji: "♻️", topic: "Trade-in (eski cihaz takası) avantajını anında indirim/kredi olarak çerçeveleme" },
+    { id: "u4-p1", type: "prova", title: "Trade-In Provası", emoji: "♻️", ref: "tradein" },
+    { id: "u4-e2", type: "egitim", title: "Finansman Çerçeveleme", emoji: "💳", topic: "Fiyat itirazını aylık küçük taksite bölerek çerçeveleme; finansman seçeneklerini anlatma" },
+    { id: "u4-p2", type: "prova", title: "Finansman Provası", emoji: "💳", ref: "finance" },
+  ] },
+  { unit: 5, title: "Ekosistem Satışı", color: "from-sky-500 to-blue-600", nodes: [
+    { id: "u5-p1", type: "prova", title: "Apple Watch", emoji: "⌚", ref: "watch" },
+    { id: "u5-p2", type: "prova", title: "iPad", emoji: "📲", ref: "ipad" },
+    { id: "u5-p3", type: "prova", title: "Premium Satış", emoji: "💎", ref: "premium" },
+    { id: "u5-q1", type: "quiz", title: "Bilgi Kontrolü", emoji: "✅" },
+  ] },
+  { unit: 6, title: "İtiraz & Kapanış", color: "from-rose-500 to-red-600", nodes: [
+    { id: "u6-e1", type: "egitim", title: "İtiraz Yönetimi", emoji: "🧠", topic: "Yaygın satış itirazları (pahalı, düşüneceğim, rakip ucuz) ve her birine yapıcı cevap çerçeveleri" },
+    { id: "u6-p1", type: "prova", title: "Şikâyetçi Müşteri", emoji: "😤", ref: "iade" },
+    { id: "u6-c1", type: "checkpoint", title: "BÜYÜK SINAV: Kapanış", emoji: "🏆", ref: "kapanis" },
+  ] },
+];
+const PATH_NODES = CURRICULUM.flatMap((u) => u.nodes.map((n) => ({ ...n, unit: u.unit })));
+function nodeDone(me, id) { return !!(me && me.path && me.path.done && me.path.done[id]); }
+function nodeUnlocked(me, idx) { return idx === 0 || nodeDone(me, PATH_NODES[idx - 1].id); }
+async function markNode(username, nodeId, xp, coins) {
+  try { const rec = await sget(skey(username)); if (!rec) return; rec.path = rec.path || { done: {} }; rec.path.done = rec.path.done || {};
+    if (!rec.path.done[nodeId]) { rec.path.done[nodeId] = true; rec.totalXp = (rec.totalXp || 0) + (xp || 0); rec.coins = (rec.coins || 0) + (coins || 0); await sset(skey(username), rec); } } catch {}
+}
 const SEED = [
   { username: "Ahmet", bestScore: 94, sessions: 28, totalXp: 2240, color: "bg-indigo-500", store: "Kanyon", kpis: ["Sigorta Attach", "Mac Upgrade", "Finansman", "Premium Satış"] },
   { username: "Emre", bestScore: 91, sessions: 21, totalXp: 1760, color: "bg-rose-500", store: "Akasya", kpis: ["Sigorta Attach", "Trade-In", "Aksesuar Attach"] },
@@ -247,7 +292,7 @@ async function seedIfNeeded() {
 /* ====================== uygulama ====================== */
 export default function App() {
   const [screen, setScreen] = useState("loading");
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState("yol");
   const [user, setUser] = useState(null);
   const [me, setMe] = useState(null);
   const [board, setBoard] = useState([]);
@@ -300,6 +345,7 @@ export default function App() {
       <Style />
       <div className="mx-auto max-w-md px-4 pb-24 pt-5">
         <TopBar user={user} me={me} onLogout={logout} manager={manager} theme={theme} onToggleTheme={toggleTheme} />
+        {tab === "yol" && <PathTab user={user} me={me} catalog={catalog} onUpdate={reload} />}
         {tab === "home" && <HomeTab user={user} me={me} board={board} myRank={myRank} catalog={catalog} onBoard={() => setTab("board")} onLaunch={(sc) => { window.__launch = sc; setTab("play"); }} onUpdate={reload} />}
         {tab === "play" && <PracticeTab user={user} catalog={catalog} onFinish={reload} goHome={() => setTab("home")} />}
         {tab === "coach" && <CoachTab user={user} onUpdate={reload} />}
@@ -535,6 +581,89 @@ function ProfileTab({ me, user, myRank, manager, onBecomeManager, onUpdate }) {
       {kpis.length > 0 && <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200"><div className="mb-3 text-sm font-bold">KPI Bazında En İyi</div><div className="space-y-2.5">{kpis.map(([k, v]) => <div key={k}><div className="mb-1 flex justify-between text-[13px]"><span className="font-medium text-slate-600">{k}</span><span className="font-bold">{v.best}</span></div><div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.max(3, v.best)}%` }} /></div></div>)}</div></div>}
       {recent.length > 0 && <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200"><div className="mb-3 text-sm font-bold">Son Provalar</div><div className="flex items-end gap-2">{recent.map((s, i) => <div key={i} className="flex flex-1 flex-col items-center gap-1"><div className="flex w-full items-end justify-center" style={{ height: 56 }}><div className="w-full max-w-[26px] rounded-t-md bg-gradient-to-t from-indigo-500 to-violet-500" style={{ height: `${Math.max(6, (s.score / 100) * 56)}px` }} /></div><span className="text-[11px] font-semibold text-slate-500">{s.score}</span></div>)}</div></div>}
       {!manager && <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">{!showCode ? <button onClick={() => setShowCode(true)} className="flex w-full items-center justify-center gap-2 text-sm font-semibold text-slate-500"><ShieldAlert className="h-4 w-4" /> Yönetici girişi</button> : <div className="space-y-2"><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Yönetici kodu" className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-sm outline-none ring-1 ring-slate-200" />{cerr && <p className="text-xs text-rose-600">{cerr}</p>}<button onClick={() => { if (code === ADMIN_CODE) onBecomeManager(); else setCerr("Kod hatalı."); }} className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white">Panele gir</button></div>}</div>}
+    </div>
+  );
+}
+
+/* ====================== ürün eğitimi dersi ====================== */
+function Lesson({ topic, title, onDone, onBack }) {
+  const [data, setData] = useState(null); const [phase, setPhase] = useState("read");
+  const [qi, setQi] = useState(0), [picked, setPicked] = useState(null), [correct, setCorrect] = useState(0);
+  useEffect(() => { (async () => {
+    const sys = `Apple Premium Reseller (Türkiye) satış danışmanları için KISA bir mikro-ders hazırla. Konu: ${topic}. Sade, uygulanabilir, Türkçe. SADECE JSON: {"ozet":"1-2 cümle giriş","maddeler":["4-5 kısa öğretici madde, her biri tek cümle"],"ipucu":"sahada kullanılacak tek pratik cümle","sorular":[{"q":"...","a":["..","..",".."],"c":0}]} (2 soru üret)`;
+    try { const r = looseJSON(await callClaude(sys, [{ role: "user", content: "Dersi üret." }], { temperature: 0.85 })); if (!r.maddeler) throw 0; setData(r); }
+    catch { setData({ ozet: "Bu konuda kısa bir özet şu an alınamadı, yine de ilerleyebilirsin.", maddeler: ["İhtiyacı önce keşfet, sonra öner.", "Fiyatı değil faydayı anlat.", "Müşteriyi dinle ve çözüm sun."], ipucu: "Bu seçenek tam sizin kullanımınıza göre; göstereyim mi?", sorular: [] }); }
+  })(); }, []);
+  if (!data) return <div className="space-y-4"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Yola dön</button><div className="rounded-2xl bg-white p-10 text-center ring-1 ring-slate-200"><Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-300" /><p className="mt-3 text-sm text-slate-500">Ders hazırlanıyor…</p></div></div>;
+  if (phase === "read") return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="text-sm font-semibold text-slate-500">← Yola dön</button>
+      <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-700 p-5 text-white shadow-md"><div className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Ürün Eğitimi</div><div className="mt-1 text-xl font-bold">{title}</div><div className="mt-2 text-sm leading-relaxed text-indigo-100">{data.ozet}</div></div>
+      <div className="space-y-2">{data.maddeler.map((m, i) => <div key={i} className="flex gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">{i + 1}</div><div className="text-[14px] leading-relaxed text-slate-700">{m}</div></div>)}</div>
+      {data.ipucu && <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-100"><div className="text-[11px] font-bold uppercase tracking-wide text-amber-600">Sahada kullan</div><div className="mt-1 text-[14px] font-medium text-amber-900">"{data.ipucu}"</div></div>}
+      <button onClick={() => setPhase(data.sorular && data.sorular.length ? "quiz" : "fin")} className="w-full rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-[15px] font-semibold text-white">{data.sorular && data.sorular.length ? "Mini teste geç" : "Dersi tamamla"}</button>
+    </div>
+  );
+  if (phase === "quiz") {
+    const q = data.sorular[qi];
+    const choose = (idx) => { if (picked !== null) return; setPicked(idx); if (idx === q.c) setCorrect((c) => c + 1); setTimeout(() => { if (qi + 1 < data.sorular.length) { setQi(qi + 1); setPicked(null); } else setPhase("fin"); }, 650); };
+    return (
+      <div className="space-y-4">
+        <button onClick={onBack} className="text-sm font-semibold text-slate-500">← Yola dön</button>
+        <div className="text-xs font-semibold text-slate-400">Soru {qi + 1}/{data.sorular.length}</div>
+        <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200"><div className="text-base font-bold leading-snug">{q.q}</div><div className="mt-4 space-y-2">{q.a.map((opt, idx) => { let cls = "bg-slate-50 ring-slate-200"; if (picked !== null) { if (idx === q.c) cls = "bg-emerald-50 ring-emerald-300"; else if (idx === picked) cls = "bg-rose-50 ring-rose-300"; } return <button key={idx} onClick={() => choose(idx)} className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium ring-1 ${cls}`}>{opt}</button>; })}</div></div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200 pop-in"><div className="text-5xl">🎓</div><div className="mt-3 text-lg font-bold">Ders tamamlandı!</div>{data.sorular && data.sorular.length > 0 && <div className="mt-1 text-sm text-slate-500">{correct}/{data.sorular.length} doğru</div>}</div>
+      <button onClick={onDone} className="w-full rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 px-5 py-3.5 text-[15px] font-semibold text-white">Yolda ilerle →</button>
+    </div>
+  );
+}
+
+/* ====================== öğrenme yolu haritası ====================== */
+function PathTab({ user, me, catalog, onUpdate }) {
+  const [active, setActive] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const scenarioFor = (node) => catalog.find((s) => s.id === node.ref) || catalog[0];
+  async function complete(node, xp, coins) { await markNode(user.username, node.id, xp, coins); onUpdate && onUpdate(); }
+
+  if (active) {
+    const n = active;
+    if (n.type === "egitim") return <Lesson topic={n.topic} title={n.title} onBack={() => setActive(null)} onDone={async () => { await complete(n, 30, 15); setActive(null); }} />;
+    if (n.type === "quiz") return <Quiz user={user} onBack={() => setActive(null)} onDone={async () => { await complete(n, 20, 10); setActive(null); }} />;
+    if (feedback) return <Result fb={feedback} scenario={scenarioFor(n)} onAgain={() => setFeedback(null)} onHome={async () => { const ok = n.type !== "checkpoint" || feedback.outcome === "won"; if (ok) await complete(n, n.type === "checkpoint" ? 80 : 40, n.type === "checkpoint" ? 40 : 20); setFeedback(null); setActive(null); }} />;
+    return <Roleplay user={user} scenario={scenarioFor(n)} onResult={(fb) => { setFeedback(fb); onUpdate && onUpdate(); }} onQuit={() => setActive(null)} />;
+  }
+
+  const doneCount = PATH_NODES.filter((n) => nodeDone(me, n.id)).length;
+  const curIdx = PATH_NODES.findIndex((n, i) => !nodeDone(me, n.id) && nodeUnlocked(me, i));
+  let flatIdx = -1;
+  return (
+    <div className="space-y-5 pb-4">
+      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-950 p-5 text-white shadow-xl fade-up"><div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300">Öğrenme Yolu</div><div className="mt-1 text-2xl font-bold tracking-tight">Satış Akademisi</div><div className="mt-1 text-sm text-indigo-200">{doneCount}/{PATH_NODES.length} adım tamamlandı</div><div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400" style={{ width: `${Math.round((doneCount / PATH_NODES.length) * 100)}%` }} /></div></div>
+      {CURRICULUM.map((u) => (
+        <div key={u.unit} className="space-y-3">
+          <div className={`flex items-center gap-3 rounded-2xl bg-gradient-to-r ${u.color} px-4 py-3 text-white shadow`}><span className="text-[11px] font-bold uppercase tracking-wider opacity-80">Ünite {u.unit}</span><span className="text-base font-bold">{u.title}</span></div>
+          <div className="flex flex-col items-center gap-2 py-1">
+            {u.nodes.map((node, ni) => { flatIdx++; const i = flatIdx; const done = nodeDone(me, node.id); const unlocked = nodeUnlocked(me, i); const isCur = i === curIdx; const off = ni % 2 === 0 ? "-translate-x-10" : "translate-x-10"; const tcol = node.type === "egitim" ? "from-indigo-500 to-violet-600" : node.type === "quiz" ? "from-emerald-500 to-teal-600" : node.type === "checkpoint" ? "from-amber-500 to-orange-600" : "from-rose-500 to-pink-600";
+              return (
+                <div key={node.id} className={`flex w-full justify-center ${off}`}>
+                  <button onClick={() => unlocked && setActive(node)} disabled={!unlocked} className="flex flex-col items-center gap-1">
+                    <div className={`relative flex h-16 w-16 items-center justify-center rounded-2xl text-2xl shadow-md transition ${done ? "bg-gradient-to-br " + tcol + " text-white" : unlocked ? "bg-white ring-2 ring-slate-200" : "bg-slate-100 opacity-50"} ${isCur ? "ring-4 ring-indigo-300 sk-bob" : ""}`}>
+                      {done ? <Check className="h-7 w-7" /> : unlocked ? <span>{node.emoji}</span> : <span className="text-lg">🔒</span>}
+                      {isCur && <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-bold text-white">BURADASIN</span>}
+                    </div>
+                    <div className={`max-w-[130px] text-center text-[11px] font-semibold leading-tight ${unlocked ? "text-slate-600" : "text-slate-300"}`}>{node.title}</div>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1015,7 +1144,7 @@ SADECE JSON: {"taktikler":["3-4 kısa uygulanabilir ikna taktiği"],"capraz":["b
 }
 
 function BottomNav({ tab, setTab, manager }) {
-  const items = [{ id: "home", icon: HomeIcon, label: "Ana" }, { id: "play", icon: Swords, label: "Prova" }, { id: "coach", icon: Lightbulb, label: "Koç" }, { id: "board", icon: Trophy, label: "Lider" }];
+  const items = [{ id: "yol", icon: Map, label: "Yol" }, { id: "home", icon: HomeIcon, label: "Ana" }, { id: "play", icon: Swords, label: "Prova" }, { id: "coach", icon: Lightbulb, label: "Koç" }, { id: "board", icon: Trophy, label: "Lider" }];
   if (manager) items.push({ id: "mgr", icon: Users, label: "Yönetici" });
   items.push({ id: "profile", icon: User, label: "Profil" });
   return <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur"><div className="mx-auto flex max-w-md items-center justify-around px-1 py-2">{items.map((it) => { const Icon = it.icon, active = tab === it.id; return <button key={it.id} onClick={() => setTab(it.id)} className={`flex flex-1 flex-col items-center gap-0.5 py-1 ${active ? "text-indigo-600" : "text-slate-400"}`}><span className={`flex h-7 w-11 items-center justify-center rounded-full transition ${active ? "bg-indigo-50" : ""}`}><Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} /></span><span className="text-[10px] font-semibold">{it.label}</span></button>; })}</div></div>;
