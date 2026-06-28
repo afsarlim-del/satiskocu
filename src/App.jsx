@@ -461,12 +461,66 @@ function PracticeTab({ user, catalog, onFinish, goHome }) {
   );
 }
 
+function FaceG({ x = 0, y = 0, s = 1, skin = "#fadcc0", hair = "#2c2c34", shirt = "#6366f1", mood = "ilgili", talking, pupil = 0, badge }) {
+  const f = FACE[mood] || FACE.ilgili;
+  return (
+    <g transform={`translate(${x},${y}) scale(${s})`}>
+      <path d="M8 150 Q8 104 65 104 Q122 104 122 150 Z" fill={shirt} />
+      <path d="M40 108 Q65 122 90 108 L90 150 L40 150 Z" fill="#000" opacity=".08" />
+      <rect x="56" y="92" width="18" height="16" rx="7" fill={skin} />
+      {badge && <rect x="86" y="120" width="16" height="11" rx="2" fill="#ffffff" />}
+      {badge && <rect x="88" y="123" width="12" height="2.2" rx="1" fill="#cbd5e1" />}
+      <circle cx="27" cy="64" r="7" fill={skin} /><circle cx="103" cy="64" r="7" fill={skin} />
+      <ellipse cx="65" cy="62" rx="39" ry="41" fill={skin} />
+      <path d="M25 60 Q25 16 65 16 Q105 16 105 60 Q105 40 87 37 Q75 30 65 30 Q55 30 43 37 Q25 40 25 60 Z" fill={hair} />
+      {f.blush > 0 && (<g><ellipse cx="45" cy="76" rx="7" ry="4" fill="#fb7185" opacity={f.blush} /><ellipse cx="85" cy="76" rx="7" ry="4" fill="#fb7185" opacity={f.blush} /></g>)}
+      {f.happy ? (
+        <g stroke="#2c2c34" strokeWidth="3.5" strokeLinecap="round" fill="none"><path d="M44 64 Q51 57 58 64" /><path d="M72 64 Q79 57 86 64" /></g>
+      ) : (
+        <g className="sk-eyes">
+          <ellipse cx="51" cy="64" rx="6.5" ry="8" fill="#fff" /><circle cx={51 + pupil} cy="65" r="3.2" fill="#27272a" />
+          <ellipse cx="79" cy="64" rx="6.5" ry="8" fill="#fff" /><circle cx={79 + pupil} cy="65" r="3.2" fill="#27272a" />
+        </g>
+      )}
+      <path d={f.browL} stroke="#2c2c34" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+      <path d={f.browR} stroke="#2c2c34" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+      {talking ? <ellipse className="sk-talk" cx="65" cy="89" rx="8" ry="6" fill="#7f1d1d" /> : <path d={f.mouth} stroke="#7f1d1d" strokeWidth="3.6" strokeLinecap="round" fill="none" />}
+      {f.sweat && <path className="sk-wave" d="M99 46 q4 7 0 10 a4 4 0 1 1 0 -10 z" fill="#7dd3fc" />}
+    </g>
+  );
+}
+function StoreScene({ mood = "supheci", custTalk, advTalk }) {
+  return (
+    <svg viewBox="0 0 360 212" className="h-full w-full">
+      <defs>
+        <linearGradient id="ssSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#cfe9ff" /><stop offset="1" stopColor="#eef7ff" /></linearGradient>
+        <linearGradient id="ssFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ecd9bb" /><stop offset="1" stopColor="#dec59c" /></linearGradient>
+      </defs>
+      <rect x="0" y="0" width="360" height="152" fill="#eef2f7" />
+      <rect x="18" y="16" width="150" height="86" rx="6" fill="url(#ssSky)" stroke="#cbd5e1" strokeWidth="3" />
+      <g fill="#bcd6ec"><rect x="30" y="62" width="16" height="40" /><rect x="52" y="50" width="14" height="52" /><rect x="72" y="68" width="18" height="34" /><rect x="96" y="56" width="14" height="46" /><rect x="118" y="70" width="16" height="32" /><rect x="140" y="58" width="14" height="44" /></g>
+      <line x1="93" y1="16" x2="93" y2="102" stroke="#cbd5e1" strokeWidth="2" /><line x1="18" y1="59" x2="168" y2="59" stroke="#cbd5e1" strokeWidth="2" />
+      <g><rect x="196" y="24" width="150" height="8" rx="3" fill="#dfe5ec" /><rect x="196" y="56" width="150" height="8" rx="3" fill="#dfe5ec" />
+        {[210, 236, 262, 288, 314].map((x, i) => <rect key={i} x={x} y="34" width="18" height="18" rx="3" fill={["#60a5fa", "#34d399", "#f472b6", "#fbbf24", "#a78bfa"][i]} />)}
+        {[210, 236, 262, 288, 314].map((x, i) => <rect key={"b" + i} x={x} y="66" width="18" height="18" rx="3" fill={["#f87171", "#22d3ee", "#c084fc", "#4ade80", "#fb923c"][i]} />)}
+      </g>
+      <g fill="#fde68a" opacity=".5"><ellipse cx="120" cy="5" rx="34" ry="5" /><ellipse cx="250" cy="5" rx="34" ry="5" /></g>
+      <rect x="0" y="152" width="360" height="60" fill="url(#ssFloor)" />
+      <g stroke="#d3b88f" strokeWidth="1.5"><line x1="0" y1="170" x2="360" y2="170" /><line x1="0" y1="192" x2="360" y2="192" /></g>
+      <g><rect x="20" y="118" width="20" height="28" rx="3" fill="#b08968" /><path d="M30 118 Q16 94 28 90 Q32 102 30 118" fill="#3f9d6b" /><path d="M30 118 Q44 94 32 90 Q28 102 30 118" fill="#34875a" /><path d="M30 116 Q30 90 38 88 Q36 102 30 116" fill="#4caf7a" /></g>
+      <g className="sk-bob"><FaceG x={42} y={40} s={0.8} skin="#f1c79c" hair="#3a3a42" shirt="#4f46e5" mood="ilgili" talking={advTalk} pupil={2} badge /></g>
+      <FaceG x={210} y={52} s={0.92} skin="#f6cfa0" hair="#2c2c34" shirt="#94a3b8" mood={mood} talking={custTalk} pupil={-2} />
+      <g><rect x="92" y="156" width="176" height="40" rx="6" fill="#ffffff" /><rect x="88" y="150" width="184" height="11" rx="4" fill="#caa97c" /><rect x="150" y="134" width="15" height="22" rx="3" fill="#1f2937" /><rect x="205" y="140" width="26" height="16" rx="3" fill="#334155" /></g>
+    </svg>
+  );
+}
 function GuidedDemo({ onBack }) {
   const [hist, setHist] = useState([]); // {customer, mood, options, picked, quality, why}
   const [cur, setCur] = useState(null); // {customer, mood, options}
   const [mood, setMood] = useState("supheci"); const [busy, setBusy] = useState(true); const [step, setStep] = useState(0);
-  const [picked, setPicked] = useState(null); const [done, setDone] = useState(false); const [verdict, setVerdict] = useState(""); const [err, setErr] = useState("");
+  const [picked, setPicked] = useState(null); const [done, setDone] = useState(false); const [verdict, setVerdict] = useState(""); const [err, setErr] = useState(""); const [custTalk, setCustTalk] = useState(false);
   const apiRef = useRef([]);
+  useEffect(() => { if (cur) { setCustTalk(true); const t = setTimeout(() => setCustTalk(false), Math.min(3500, 1000 + (cur.customer ? cur.customer.length : 0) * 35)); return () => clearTimeout(t); } }, [cur]);
   const sys = `Sen Apple Premium Reseller (Türkiye) için bir satış EĞİTMENİsin. Kullanıcıya rehberli bir vaka oynatıyorsun: müşteri konuşur, sen DANIŞMAN için 3 olası cevap sunarsın (biri "iyi", biri "orta", biri "zayıf"; sırayı karıştır). Kullanıcı birini seçer, müşteri ona göre tepki verir. Gerçekçi ve kısa tut.
 ${PRODUCTS}
 SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","mood":"supheci|dusunuyor|tereddut|ilgili|ikna|sinirli","options":[{"text":"danışman cevabı","quality":"iyi|orta|zayıf","why":"tek cümle gerekçe"}],"closed":false,"verdict":""}`;
@@ -498,7 +552,7 @@ SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","mood":"supheci|du
   if (done) return (
     <div className="space-y-4">
       <button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button>
-      <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200 pop-in"><div className={`mx-auto h-24 w-24 overflow-hidden rounded-2xl ${MOODS[mood]?.bg}`}><CharacterFace mood={mood} /></div><div className="mt-3 text-lg font-bold">Demo tamamlandı</div></div>
+      <div className="rounded-2xl bg-white p-5 text-center ring-1 ring-slate-200 pop-in"><div className="overflow-hidden rounded-2xl ring-1 ring-slate-200"><div className="aspect-[360/212] w-full bg-slate-100"><StoreScene mood="ikna" /></div></div><div className="mt-3 text-lg font-bold">Demo tamamlandı</div></div>
       <Block tone="indigo" icon={<Sparkles className="h-4 w-4" />} title="Eğitmen değerlendirmesi" items={[verdict]} />
       <button onClick={onBack} className="w-full rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-[15px] font-semibold text-white">Bitir</button>
     </div>
@@ -506,10 +560,8 @@ SADECE JSON: {"customer":"müşterinin cümlesi (1-2 cümle)","mood":"supheci|du
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between"><button onClick={onBack} className="text-sm font-semibold text-slate-500">← Geri</button><span className="text-xs font-semibold text-slate-400">Adım {Math.min(step + 1, 5)}/5</span></div>
-      <div className={`relative flex flex-col items-center overflow-hidden rounded-3xl px-4 pb-4 pt-4 ring-1 ring-slate-200 ${MOODS[mood]?.bg}`}>
-        <div className="sk-bob h-32 w-32"><CharacterFace mood={mood} talking={busy} thinking={busy} /></div>
-        <div className={`text-sm font-extrabold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div>
-      </div>
+      <div className="overflow-hidden rounded-3xl shadow-sm ring-1 ring-slate-200"><div className="aspect-[360/212] w-full bg-slate-100"><StoreScene mood={mood} custTalk={custTalk} advTalk={busy && picked !== null} /></div></div>
+      <div className="-mt-1 flex items-center justify-center gap-2 text-[12px] font-semibold"><span className="text-slate-400">Müşteri:</span><span className={MOODS[mood]?.text}>{MOODS[mood]?.label}</span></div>
       {err && <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="h-3.5 w-3.5" /> {err}</div>}
       {busy && !cur ? <div className="rounded-2xl bg-white p-10 text-center ring-1 ring-slate-200"><Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-300" /><p className="mt-3 text-sm text-slate-500">Görüşme hazırlanıyor…</p></div> : cur && (<>
         <div className="rounded-2xl bg-slate-100 px-4 py-3 text-[14px] leading-relaxed text-slate-800">💬 {cur.customer}</div>
