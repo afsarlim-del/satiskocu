@@ -18,14 +18,14 @@ async function tryFetch(url, opts) {
   return res;
 }
 
-async function callGemini(env, system, messages) {
+async function callGemini(env, system, messages, temp = 0.7) {
   const key = env.GEMINI_API_KEY;
   const model = env.GEMINI_MODEL || "gemini-2.5-flash";
   const contents = messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
   }));
-  const body = { contents, generationConfig: { maxOutputTokens: 2048, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } } };
+  const body = { contents, generationConfig: { maxOutputTokens: 2048, temperature: temp, thinkingConfig: { thinkingBudget: 0 } } };
   if (system) body.system_instruction = { parts: [{ text: system }] };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const res = await tryFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -34,14 +34,14 @@ async function callGemini(env, system, messages) {
   return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
 }
 
-async function callOpenAICompat(base, key, model, system, messages) {
+async function callOpenAICompat(base, key, model, system, messages, temp = 0.7) {
   const msgs = [];
   if (system) msgs.push({ role: "system", content: system });
   for (const m of messages) msgs.push({ role: m.role === "assistant" ? "assistant" : "user", content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) });
   const res = await tryFetch(base + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + key },
-    body: JSON.stringify({ model, messages: msgs, max_tokens: 1024, temperature: 0.7 }),
+    body: JSON.stringify({ model, messages: msgs, max_tokens: 1024, temperature: temp }),
   });
   const data = await res.json();
   if (data.error) throw new Error((data.error.message || data.error) + "");
@@ -51,14 +51,15 @@ async function callOpenAICompat(base, key, model, system, messages) {
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
-    const { system, messages } = await request.json();
+    const { system, messages, temperature } = await request.json();
+    const temp = typeof temperature === "number" ? Math.max(0, Math.min(1.3, temperature)) : 0.7;
 
     const chain = [];
-    if (env.OPENAI_API_KEY) chain.push({ name: "openai", fn: () => callOpenAICompat("https://api.openai.com/v1", env.OPENAI_API_KEY, env.OPENAI_MODEL || "gpt-4o-mini", system, messages) });
-    if (env.GEMINI_API_KEY) chain.push({ name: "gemini", fn: () => callGemini(env, system, messages) });
-    if (env.GROQ_API_KEY) chain.push({ name: "groq", fn: () => callOpenAICompat("https://api.groq.com/openai/v1", env.GROQ_API_KEY, env.GROQ_MODEL || "llama-3.3-70b-versatile", system, messages) });
-    if (env.OPENROUTER_API_KEY && env.OPENROUTER_MODEL) chain.push({ name: "openrouter", fn: () => callOpenAICompat("https://openrouter.ai/api/v1", env.OPENROUTER_API_KEY, env.OPENROUTER_MODEL, system, messages) });
-    if (env.MISTRAL_API_KEY) chain.push({ name: "mistral", fn: () => callOpenAICompat("https://api.mistral.ai/v1", env.MISTRAL_API_KEY, env.MISTRAL_MODEL || "mistral-small-latest", system, messages) });
+    if (env.OPENAI_API_KEY) chain.push({ name: "openai", fn: () => callOpenAICompat("https://api.openai.com/v1", env.OPENAI_API_KEY, env.OPENAI_MODEL || "gpt-4o-mini", system, messages, temp) });
+    if (env.GEMINI_API_KEY) chain.push({ name: "gemini", fn: () => callGemini(env, system, messages, temp) });
+    if (env.GROQ_API_KEY) chain.push({ name: "groq", fn: () => callOpenAICompat("https://api.groq.com/openai/v1", env.GROQ_API_KEY, env.GROQ_MODEL || "llama-3.3-70b-versatile", system, messages, temp) });
+    if (env.OPENROUTER_API_KEY && env.OPENROUTER_MODEL) chain.push({ name: "openrouter", fn: () => callOpenAICompat("https://openrouter.ai/api/v1", env.OPENROUTER_API_KEY, env.OPENROUTER_MODEL, system, messages, temp) });
+    if (env.MISTRAL_API_KEY) chain.push({ name: "mistral", fn: () => callOpenAICompat("https://api.mistral.ai/v1", env.MISTRAL_API_KEY, env.MISTRAL_MODEL || "mistral-small-latest", system, messages, temp) });
 
     if (!chain.length) return json({ text: "", error: "Hiç API anahtarı tanımlı değil (OPENAI_API_KEY, GEMINI_API_KEY ya da GROQ_API_KEY ekle)" }, 500);
 
