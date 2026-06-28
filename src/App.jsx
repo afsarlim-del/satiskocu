@@ -171,34 +171,52 @@ export default function App() {
   );
 }
 
-function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}@keyframes skBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}@keyframes skTalk{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.05)}}@keyframes skBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}.sk-eyes{transform-box:fill-box;transform-origin:center;animation:skBlink 4.2s infinite}.sk-talk{transform-box:fill-box;transform-origin:center;animation:skTalk .26s infinite}.sk-bob{animation:skBob 3.6s ease-in-out infinite}` }} />; }
+function Style() { return <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}.fade-up{animation:fadeUp .3s ease both}.pop-in{animation:popIn .3s ease both}@keyframes skBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}@keyframes skTalk{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.05)}}@keyframes skBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@keyframes skWave{0%,100%{opacity:.3}50%{opacity:1}}@keyframes skThink{0%,100%{opacity:.4}50%{opacity:1}}.sk-eyes{transform-box:fill-box;transform-origin:center;animation:skBlink 4.2s infinite}.sk-talk{transform-box:fill-box;transform-origin:center;animation:skTalk .24s infinite}.sk-bob{animation:skBob 3.6s ease-in-out infinite}.sk-wave{animation:skWave .9s ease-in-out infinite}.sk-think{animation:skThink 1.1s ease-in-out infinite}` }} />; }
 
 const FACE = {
-  supheci:   { browL: "M38 47 L52 49", browR: "M68 49 L82 47", mouth: "M48 82 Q60 82 72 82" },
-  dusunuyor: { browL: "M38 45 L52 47", browR: "M68 49 L82 51", mouth: "M52 83 Q60 81 68 83" },
-  tereddut:  { browL: "M38 50 L52 45", browR: "M68 45 L82 50", mouth: "M48 86 Q60 80 72 86" },
-  ilgili:    { browL: "M38 46 L52 47", browR: "M68 47 L82 46", mouth: "M48 80 Q60 88 72 80" },
-  ikna:      { browL: "M38 44 L52 45", browR: "M68 45 L82 44", mouth: "M46 79 Q60 93 74 79" },
+  supheci:   { browL: "M36 47 L52 51", browR: "M68 51 L84 47", mouth: "M48 86 Q60 85 72 86", blush: 0,   sweat: false, happy: false },
+  dusunuyor: { browL: "M36 45 L52 48", browR: "M68 51 L84 54", mouth: "M52 86 Q60 84 68 86", blush: 0,   sweat: false, happy: false },
+  tereddut:  { browL: "M36 52 L52 45", browR: "M68 45 L84 52", mouth: "M48 90 Q60 83 72 90", blush: 0,   sweat: true,  happy: false },
+  ilgili:    { browL: "M36 46 L52 47", browR: "M68 47 L84 46", mouth: "M48 84 Q60 92 72 84", blush: 0.5, sweat: false, happy: false },
+  ikna:      { browL: "M36 44 L52 45", browR: "M68 45 L84 44", mouth: "M44 82 Q60 99 76 82", blush: 0.9, sweat: false, happy: true },
 };
 function CharacterFace({ mood = "supheci", talking, thinking }) {
   const f = FACE[mood] || FACE.supheci;
+  const lookUp = thinking || mood === "dusunuyor";
+  const px = lookUp ? -1.5 : 0, py = lookUp ? -3 : 0;
   return (
-    <svg viewBox="0 0 120 124" className="h-full w-full">
-      <path d="M18 124 Q18 96 60 96 Q102 96 102 124 Z" fill="#6366f1" />
-      <rect x="52" y="84" width="16" height="14" rx="6" fill="#f3c9a8" />
-      <circle cx="60" cy="56" r="38" fill="#fadcc0" />
-      <path d="M22 54 Q22 16 60 16 Q98 16 98 54 Q98 40 82 36 Q70 30 60 30 Q50 30 38 36 Q22 40 22 54 Z" fill="#3f3f46" />
-      <circle cx="23" cy="58" r="6" fill="#fadcc0" /><circle cx="97" cy="58" r="6" fill="#fadcc0" />
-      <g className="sk-eyes">
-        <ellipse cx="47" cy="58" rx="6" ry="7" fill="#fff" /><circle cx="48" cy="59" r="3" fill="#27272a" />
-        <ellipse cx="73" cy="58" rx="6" ry="7" fill="#fff" /><circle cx="72" cy="59" r="3" fill="#27272a" />
-      </g>
-      <path d={f.browL} stroke="#3f3f46" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d={f.browR} stroke="#3f3f46" strokeWidth="3" strokeLinecap="round" fill="none" />
+    <svg viewBox="0 0 130 142" className="h-full w-full">
+      <defs>
+        <radialGradient id="skin" cx="50%" cy="40%" r="62%"><stop offset="0%" stopColor="#ffe9d2" /><stop offset="100%" stopColor="#f4c193" /></radialGradient>
+        <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4b4b55" /><stop offset="100%" stopColor="#2c2c34" /></linearGradient>
+        <radialGradient id="glow" cx="50%" cy="44%" r="60%"><stop offset="0%" stopColor="#fff" stopOpacity=".55" /><stop offset="100%" stopColor="#fff" stopOpacity="0" /></radialGradient>
+      </defs>
+      <ellipse cx="65" cy="62" rx="54" ry="58" fill="url(#glow)" />
+      <path d="M16 142 Q16 108 65 108 Q114 108 114 142 Z" fill="#6366f1" />
+      <path d="M40 112 Q65 126 90 112 L90 142 L40 142 Z" fill="#4f46e5" />
+      <path d="M57 109 L65 119 L73 109" fill="none" stroke="#c7d2fe" strokeWidth="2.5" />
+      <rect x="56" y="93" width="18" height="18" rx="7" fill="#f1bf94" />
+      <circle cx="26" cy="66" r="7" fill="url(#skin)" /><circle cx="104" cy="66" r="7" fill="url(#skin)" />
+      <ellipse cx="65" cy="64" rx="40" ry="42" fill="url(#skin)" />
+      <path d="M24 62 Q24 16 65 16 Q106 16 106 62 Q106 42 88 38 Q76 30 65 30 Q54 30 42 38 Q24 42 24 62 Z" fill="url(#hair)" />
+      <ellipse cx="44" cy="78" rx="7.5" ry="4.5" fill="#fb7185" opacity={f.blush} />
+      <ellipse cx="86" cy="78" rx="7.5" ry="4.5" fill="#fb7185" opacity={f.blush} />
+      {f.happy ? (
+        <g stroke="#2c2c34" strokeWidth="3.5" strokeLinecap="round" fill="none"><path d="M43 65 Q51 58 59 65" /><path d="M71 65 Q79 58 87 65" /></g>
+      ) : (
+        <g className="sk-eyes">
+          <ellipse cx="51" cy="65" rx="7" ry="8.5" fill="#fff" /><circle cx={51 + px} cy={66 + py} r="3.4" fill="#27272a" />
+          <ellipse cx="79" cy="65" rx="7" ry="8.5" fill="#fff" /><circle cx={79 + px} cy={66 + py} r="3.4" fill="#27272a" />
+        </g>
+      )}
+      <path d={f.browL} stroke="#2c2c34" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+      <path d={f.browR} stroke="#2c2c34" strokeWidth="3.5" strokeLinecap="round" fill="none" />
       {talking
-        ? <ellipse className="sk-talk" cx="60" cy="82" rx="8" ry="6" fill="#7f1d1d" />
-        : <path d={f.mouth} stroke="#7f1d1d" strokeWidth="3.5" strokeLinecap="round" fill="none" />}
-      {thinking && <g><circle cx="93" cy="30" r="3" fill="#cbd5e1" /><circle cx="101" cy="24" r="2.2" fill="#cbd5e1" /><circle cx="107" cy="19" r="1.6" fill="#cbd5e1" /></g>}
+        ? <g><ellipse className="sk-talk" cx="65" cy="90" rx="9" ry="7" fill="#7f1d1d" /><ellipse cx="65" cy="92" rx="4" ry="2.4" fill="#ef9a9a" /></g>
+        : <path d={f.mouth} stroke="#7f1d1d" strokeWidth="4" strokeLinecap="round" fill="none" />}
+      {f.sweat && <path className="sk-wave" d="M99 46 q4 7 0 10 a4 4 0 1 1 0 -10 z" fill="#7dd3fc" />}
+      {talking && <g className="sk-wave" stroke="#a5b4fc" strokeWidth="2.5" strokeLinecap="round" fill="none"><path d="M97 82 q5 8 0 16" /><path d="M105 78 q8 12 0 24" /></g>}
+      {thinking && <g className="sk-think"><circle cx="101" cy="34" r="3.2" fill="#cbd5e1" /><circle cx="110" cy="27" r="2.4" fill="#cbd5e1" /><circle cx="117" cy="21" r="1.7" fill="#cbd5e1" /></g>}
     </svg>
   );
 }
@@ -365,6 +383,7 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
   const [err, setErr] = useState(""); const [ready, setReady] = useState(false); const [voiceMode, setVoiceMode] = useState(false); const [listening, setListening] = useState(false);
   const [hint, setHint] = useState(""); const [hintBusy, setHintBusy] = useState(false);
   const [talking, setTalking] = useState(false);
+  const [keyboard, setKeyboard] = useState(false);
   const ref = useRef(null), recogRef = useRef(null), apiRef = useRef([]), voiceRef = useRef(false), endedRef = useRef(false), thinkingRef = useRef(false), talkTimer = useRef(null);
   function pulseTalk(ms = 1400) { setTalking(true); if (talkTimer.current) clearTimeout(talkTimer.current); talkTimer.current = setTimeout(() => setTalking(false), ms); }
   function sayOut(text, then) { setTalking(true); speak(text, () => { setTalking(false); then && then(); }); }
@@ -400,13 +419,13 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
     try { const h = await callClaude(`Sen bir satış koçusun. KPI: ${scenario.kpi}. Konuşmaya bakıp temsilciye SADECE tek cümlelik uygulanabilir taktik ipucu ver. Tırnak yok.`, [{ role: "user", content: tr || "(henüz konuşma yok)" }]); setHint(h.trim().slice(0, 200)); } catch { setHint("İhtiyacı keşfet, sonra faydayı somut anlat."); }
     setHintBusy(false);
   }
-  function startListen() {
+  function startListen(autoSend = false) {
     if (!SR || thinkingRef.current || endedRef.current) return;
     try {
       const rec = new SR(); rec.lang = "tr-TR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1; let finalText = "";
       rec.onresult = (e) => { let it = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const tr = e.results[i][0].transcript; if (e.results[i].isFinal) finalText += tr; else it += tr; } setInput((finalText + it).trim()); };
       rec.onerror = () => setListening(false);
-      rec.onend = () => { setListening(false); const t = finalText.trim(); if (t) { if (voiceRef.current) doSend(t); else setInput(t); } };
+      rec.onend = () => { setListening(false); const t = finalText.trim(); if (t) { if (voiceRef.current || autoSend) { setInput(""); doSend(t); } else setInput(t); } };
       recogRef.current = rec; setListening(true); rec.start();
     } catch { setListening(false); }
   }
@@ -445,12 +464,14 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between"><button onClick={() => { try { synth && synth.cancel(); } catch {} stopListen(); onQuit(); }} className="text-sm font-semibold text-slate-500">← Vazgeç</button><button onClick={toggleVoice} disabled={!SR && !synth} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${voiceMode ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"} disabled:opacity-40`}>{voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />} Sesli mod</button></div>
       <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200"><div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white"><Target className="h-3 w-3" /> {scenario.kpi}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${DIFF[scenario.diff || "orta"].cls}`}>{DIFF[scenario.diff || "orta"].label}</span></div><p className="mt-2 text-[13px] leading-snug text-slate-600">{scenario.brief}</p></div>
-      <div className="flex items-center gap-3 rounded-2xl bg-white px-3 py-3 ring-1 ring-slate-200">
-        <div className={`sk-bob h-16 w-16 shrink-0 overflow-hidden rounded-2xl ${MOODS[mood]?.bg}`}><CharacterFace mood={mood} talking={talking} thinking={thinking} /></div>
-        <div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">{scenario.name} · {scenario.product}</div><div className={`text-base font-bold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div><div className="mt-0.5 text-[11px] font-medium text-slate-400">{talking ? "konuşuyor…" : thinking ? "düşünüyor…" : "dinliyor"}</div></div>
-        <div className="text-right"><div className="text-[10px] text-slate-400">tur</div><div className="text-sm font-bold text-slate-700">{reps}</div></div>
+      <div className={`relative flex flex-col items-center overflow-hidden rounded-3xl px-4 pb-4 pt-4 ring-1 ring-slate-200 ${MOODS[mood]?.bg}`}>
+        <div className="absolute right-3 top-3 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-bold text-slate-500">tur {reps}</div>
+        <div className="sk-bob h-44 w-44"><CharacterFace mood={mood} talking={talking} thinking={thinking} /></div>
+        <div className="-mt-1 text-sm font-bold text-slate-700">{scenario.name}</div>
+        <div className={`text-xl font-extrabold ${MOODS[mood]?.text}`}>{MOODS[mood]?.label}</div>
+        <div className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">{talking ? <><span className="flex h-2 w-2 animate-pulse rounded-full bg-indigo-500" /> konuşuyor…</> : thinking ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> düşünüyor…</> : listening ? <><span className="flex h-2 w-2 animate-pulse rounded-full bg-rose-500" /> seni dinliyor…</> : "sıra sende"}</div>
       </div>
-      <div ref={ref} className="h-[34vh] min-h-[200px] space-y-3 overflow-y-auto rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+      <div ref={ref} className="h-[24vh] min-h-[150px] space-y-3 overflow-y-auto rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         {turns.map((t, i) => t.who === "c" ? (
           <div key={i} className="flex items-end gap-2"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm">{MOODS[t.emotion]?.emoji || "🙂"}</div><div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[14px] leading-relaxed text-slate-800">{t.text}<button onClick={() => sayOut(t.text)} title="Dinle" className="ml-1.5 inline-flex translate-y-0.5 text-slate-400 hover:text-indigo-600"><Volume2 className="h-3.5 w-3.5" /></button></div></div>
         ) : (
@@ -463,7 +484,18 @@ function Roleplay({ user, scenario, onResult, onQuit }) {
       </div>
       {hint && <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-800 ring-1 ring-amber-200"><Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /> {hint}</div>}
       {err && <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="h-3.5 w-3.5" /> {err}</div>}
-      <div className="rounded-2xl bg-white p-2 ring-1 ring-slate-200"><div className="flex items-end gap-2"><button onClick={() => { if (listening) stopListen(); else startListen(); }} disabled={!SR || thinking || !!ended} title={SR ? "Konuşmak için bas" : "Tarayıcı desteklemiyor"} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl disabled:opacity-30 ${listening ? "animate-pulse bg-rose-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}><Mic className="h-4 w-4" /></button><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(input); } }} rows={1} disabled={thinking || !!ended} placeholder={ended ? "Konuşma bitti" : listening ? "Dinliyorum…" : "Yaz ya da mikrofona bas…"} className="max-h-24 flex-1 resize-none bg-transparent px-1 py-2 text-[14px] outline-none placeholder:text-slate-400 disabled:opacity-50" /><button onClick={() => doSend(input)} disabled={thinking || !!ended || !input.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white disabled:opacity-30"><Send className="h-4 w-4" /></button></div></div>
+      {!keyboard ? (
+        <div className="flex flex-col items-center gap-2 py-1">
+          <button onClick={() => { if (listening) stopListen(); else startListen(true); }} disabled={!SR || thinking || !!ended} title={SR ? "Konuşmak için bas" : "Tarayıcı sesi desteklemiyor"} className={`flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition disabled:opacity-30 ${listening ? "scale-105 animate-pulse bg-rose-500 text-white" : "bg-gradient-to-br from-indigo-600 to-violet-600 text-white hover:scale-105"}`}><Mic className="h-8 w-8" /></button>
+          <div className="text-[12px] font-medium text-slate-400">{!SR ? "Tarayıcı sesi desteklemiyor" : thinking ? "müşteri düşünüyor…" : !!ended ? "konuşma bitti" : listening ? "dinliyorum… bitince tekrar bas" : "konuşmak için bas"}</div>
+          <button onClick={() => setKeyboard(true)} className="text-[11px] font-semibold text-slate-400 underline underline-offset-2">{SR ? "klavyeyle yaz" : "yazarak devam et"}</button>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <div className="rounded-2xl bg-white p-2 ring-1 ring-slate-200"><div className="flex items-end gap-2"><button onClick={() => { if (listening) stopListen(); else startListen(false); }} disabled={!SR || thinking || !!ended} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl disabled:opacity-30 ${listening ? "animate-pulse bg-rose-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}><Mic className="h-4 w-4" /></button><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(input); } }} rows={1} disabled={thinking || !!ended} placeholder={ended ? "Konuşma bitti" : listening ? "Dinliyorum…" : "Yaz ya da mikrofona bas…"} className="max-h-24 flex-1 resize-none bg-transparent px-1 py-2 text-[14px] outline-none placeholder:text-slate-400 disabled:opacity-50" /><button onClick={() => doSend(input)} disabled={thinking || !!ended || !input.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white disabled:opacity-30"><Send className="h-4 w-4" /></button></div></div>
+          <button onClick={() => setKeyboard(false)} className="w-full text-center text-[11px] font-semibold text-slate-400">↑ karakter moduna dön</button>
+        </div>
+      )}
       <div className="flex gap-2"><button onClick={getHint} disabled={hintBusy || !!ended} className="flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-amber-600 ring-1 ring-amber-200 disabled:opacity-40">{hintBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />} İpucu</button><button onClick={finish} disabled={scoring || reps < 1} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-40">{scoring ? <><Loader2 className="h-4 w-4 animate-spin" /> Skorlanıyor…</> : <><Flag className="h-4 w-4" /> Bitir & skoru al</>}</button></div>
     </div>
   );
