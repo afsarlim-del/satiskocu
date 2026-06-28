@@ -2,40 +2,69 @@ const json = (o, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { "content-type": "application/json" } });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function tryFetch(url, opts) {
+  let res;
+  for (let i = 0; i < 2; i++) {
+    res = await fetch(url, opts);
+    if (res.ok) return res;
+    if (res.status === 429 || res.status >= 500) { await sleep(1200); continue; }
+    return res;
+  }
+  return res;
+}
+
+async function callGemini(system, messages) {
+  const key = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const contents = messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
+  }));
+  const body = { contents, generationConfig: { maxOutputTokens: 2048, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } } };
+  if (system) body.system_instruction = { parts: [{ text: system }] };
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const res = await tryFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || "gemini error");
+  return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+}
+
+async function callOpenAICompat(base, key, model, system, messages) {
+  const msgs = [];
+  if (system) msgs.push({ role: "system", content: system });
+  for (const m of messages) msgs.push({ role: m.role === "assistant" ? "assistant" : "user", content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) });
+  const res = await tryFetch(base + "/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + key },
+    body: JSON.stringify({ model, messages: msgs, max_tokens: 1024, temperature: 0.7 }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error((data.error.message || data.error) + "");
+  return data.choices?.[0]?.message?.content || "";
+}
+
 export default async (req) => {
   try {
     const { system, messages } = await req.json();
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) return json({ text: "", error: "GEMINI_API_KEY tanımlı değil" }, 500);
+    const chain = [];
+    if (process.env.GEMINI_API_KEY) chain.push({ name: "gemini", fn: () => callGemini(system, messages) });
+    if (process.env.GROQ_API_KEY) chain.push({ name: "groq", fn: () => callOpenAICompat("https://api.groq.com/openai/v1", process.env.GROQ_API_KEY, process.env.GROQ_MODEL || "llama-3.3-70b-versatile", system, messages) });
+    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_MODEL) chain.push({ name: "openrouter", fn: () => callOpenAICompat("https://openrouter.ai/api/v1", process.env.OPENROUTER_API_KEY, process.env.OPENROUTER_MODEL, system, messages) });
+    if (process.env.MISTRAL_API_KEY) chain.push({ name: "mistral", fn: () => callOpenAICompat("https://api.mistral.ai/v1", process.env.MISTRAL_API_KEY, process.env.MISTRAL_MODEL || "mistral-small-latest", system, messages) });
 
-    const contents = (messages || []).map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
-    }));
+    if (!chain.length) return json({ text: "", error: "Hiç API anahtarı tanımlı değil" }, 500);
 
-    const body = {
-      contents,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } },
-    };
-    if (system) body.system_instruction = { parts: [{ text: system }] };
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-
-    let res;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) break;
-      if (res.status === 429 || res.status >= 500) { await sleep(1500); continue; }
-      break;
+    const errs = [];
+    for (const p of chain) {
+      try {
+        const text = await p.fn();
+        if (text && text.trim()) return json({ text, provider: p.name });
+        errs.push(p.name + ": boş yanıt");
+      } catch (e) {
+        errs.push(p.name + ": " + String(e.message || e));
+      }
     }
-
-    const data = await res.json();
-    if (data.error) return json({ text: "", error: data.error.message || "gemini error" }, 500);
-
-    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
-    if (!text) return json({ text: "", error: "boş yanıt (hız sınırı olabilir)" }, 500);
-    return json({ text });
+    return json({ text: "", error: "Tüm sağlayıcılar başarısız → " + errs.join(" | ") }, 500);
   } catch (e) {
     return json({ text: "", error: String(e) }, 500);
   }
